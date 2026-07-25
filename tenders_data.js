@@ -19,28 +19,15 @@ window.tendersData = [
     "title": "115年高速影印機採購案",
     "agency": "臺灣高雄少年及家事法院",
     "location": "高雄",
-    "budget": "未定",
-    "deadline": "未公告",
-    "days": 5,
-    "priority": "低",
+    "budget": "96.8 萬",
+    "deadline": "07/29",
+    "days": 4,
+    "priority": "中",
     "sourceUrl": "https://web.pcc.gov.tw/tps/QueryTender/query/searchTenderDetail?pkPmsMain=NzEyODI3Mjk",
-    "details": "尚無詳細商機說明。"
+    "details": "未達公告金額之採購，爭議屬政府採購法第31條規定不予發還或追繳押標金之爭議，始得提出申訴。"
   },
   {
     "id": 3,
-    "category": "事務機",
-    "title": "115年度個人電腦及印表機設備維護工作",
-    "agency": "台灣電力股份有限公司彰化區營業處",
-    "location": "未知",
-    "budget": "未定",
-    "deadline": "未公告",
-    "days": 5,
-    "priority": "低",
-    "sourceUrl": "https://web.pcc.gov.tw/tps/QueryTender/query/searchTenderDetail?pkPmsMain=MTcxMDc2MjY1",
-    "details": "尚無詳細商機說明。"
-  },
-  {
-    "id": 4,
     "category": "事務機",
     "title": "總管理處數位式多功能影印機租賃共61台",
     "agency": "台灣電力股份有限公司",
@@ -53,33 +40,20 @@ window.tendersData = [
     "details": "尚無詳細商機說明。"
   },
   {
-    "id": 5,
+    "id": 4,
     "category": "事務機",
     "title": "臺中區漁會漁民活動中心及辦事處設備購置-事務機器",
-    "agency": "臺中區漁會",
+    "agency": "臺中市臺中區漁會",
     "location": "台中",
-    "budget": "未定",
-    "deadline": "未公告",
-    "days": 5,
-    "priority": "低",
+    "budget": "31 萬",
+    "deadline": "07/28",
+    "days": 3,
+    "priority": "中",
     "sourceUrl": "https://web.pcc.gov.tw/tps/QueryTender/query/searchTenderDetail?pkPmsMain=MTE3MTA3NTczNw",
-    "details": "尚無詳細商機說明。"
+    "details": "未達公告金額之採購，爭議屬政府採購法第31條規定不予發還或追繳押標金之爭議，始得提出申訴。"
   },
   {
-    "id": 6,
-    "category": "事務機",
-    "title": "碳粉匣採購案(附印表機)案",
-    "agency": "國防醫學大學",
-    "location": "未知",
-    "budget": "未定",
-    "deadline": "未公告",
-    "days": 5,
-    "priority": "低",
-    "sourceUrl": "https://web.pcc.gov.tw/tps/QueryTender/query/searchTenderDetail?pkPmsMain=MTcxMDc1MDcz",
-    "details": "尚無詳細商機說明。"
-  },
-  {
-    "id": 7,
+    "id": 5,
     "category": "事務機",
     "title": "「115年行動印表機墨水匣」採購案",
     "agency": "法務部調查局",
@@ -92,7 +66,7 @@ window.tendersData = [
     "details": "尚無詳細商機說明。"
   },
   {
-    "id": 8,
+    "id": 6,
     "category": "事務機",
     "title": "租賃影印機",
     "agency": "臺灣銀行股份有限公司",
@@ -105,7 +79,7 @@ window.tendersData = [
     "details": "尚無詳細商機說明。"
   },
   {
-    "id": 9,
+    "id": 7,
     "category": "事務機",
     "title": "115年數位式多功能影印機財物採購案",
     "agency": "臺灣臺中地方檢察署",
@@ -118,7 +92,7 @@ window.tendersData = [
     "details": "尚無詳細商機說明。"
   },
   {
-    "id": 10,
+    "id": 8,
     "category": "事務機",
     "title": "高速彩色雷射印表機租賃二年單價開口契約",
     "agency": "臺北榮民總醫院",
