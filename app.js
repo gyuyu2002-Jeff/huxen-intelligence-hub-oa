@@ -365,6 +365,23 @@ window.addEventListener('keydown', (e) => {
 function init() {
   renderTenders();
   renderCompetitors();
+  
+  // Dynamic update date binding
+  if (window.tendersLastUpdated) {
+    const footerDateEl = document.getElementById('footer-date-label');
+    if (footerDateEl) {
+      footerDateEl.textContent = `標案更新日期 ${window.tendersLastUpdated}，投標前請以政府電子採購網公告為準。`;
+    }
+    
+    // Extract MM/DD (e.g. 2026/07/25 17:15 -> 07/25)
+    const match = window.tendersLastUpdated.match(/\/(\d{2})\/(\d{2})/);
+    if (match) {
+      const metricDateEl = document.getElementById('metric-date-label');
+      if (metricDateEl) {
+        metricDateEl.textContent = `${match[1]}/${match[2]} 仍在招標`;
+      }
+    }
+  }
 }
 
 init();
