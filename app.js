@@ -381,11 +381,51 @@ window.openTenderDetail = function(id, type = 'active') {
   const aiBlock = document.getElementById('detail-ai-block');
   const awardBlock = document.getElementById('detail-award-block');
   const activeBudgetTable = document.querySelector('#detail-modal .guide-table');
+  const historySec = document.getElementById('detail-history-sec');
+  const historyList = document.getElementById('detail-history-list');
   
   if (type === 'active') {
     if (aiBlock) aiBlock.style.display = 'block';
     if (awardBlock) awardBlock.style.display = 'none';
     if (activeBudgetTable) activeBudgetTable.style.display = 'table';
+    
+    // Render dynamic historical records table
+    if (historySec && historyList) {
+      if (tender.historyRecords && tender.historyRecords.length > 0) {
+        historySec.style.display = 'block';
+        let html = `
+          <table class="guide-table" style="font-size: 11px; width: 100%;">
+            <thead>
+              <tr style="background: var(--blue-soft); color: var(--blue-deep);">
+                <th style="padding: 6px; text-align: left;">日期</th>
+                <th style="padding: 6px; text-align: left;">歷史標案名稱</th>
+                <th style="padding: 6px; text-align: right;">預算</th>
+                <th style="padding: 6px; text-align: right;">決標金</th>
+                <th style="padding: 6px; text-align: center;">折數</th>
+              </tr>
+            </thead>
+            <tbody>
+        `;
+        tender.historyRecords.forEach(h => {
+          html += `
+            <tr>
+              <td style="padding: 6px; font-weight: 500; font-family: var(--font-sans);">${h.date}</td>
+              <td style="padding: 6px; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${h.title}">${h.title}</td>
+              <td style="padding: 6px; text-align: right; font-family: var(--font-sans);">${h.budget}</td>
+              <td style="padding: 6px; text-align: right; color: var(--green); font-weight: 700; font-family: var(--font-sans);">${h.awardAmount}</td>
+              <td style="padding: 6px; text-align: center; font-weight: 700; color: var(--blue); font-family: var(--font-sans);">${h.ratio}</td>
+            </tr>
+          `;
+        });
+        html += `
+            </tbody>
+          </table>
+        `;
+        historyList.innerHTML = html;
+      } else {
+        historySec.style.display = 'none';
+      }
+    }
     
     document.getElementById('detail-budget').textContent = tender.budget;
     document.getElementById('detail-deadline').textContent = tender.deadline;
@@ -409,6 +449,7 @@ window.openTenderDetail = function(id, type = 'active') {
     if (aiBlock) aiBlock.style.display = 'none';
     if (awardBlock) awardBlock.style.display = 'block';
     if (activeBudgetTable) activeBudgetTable.style.display = 'none';
+    if (historySec) historySec.style.display = 'none';
     
     document.getElementById('detail-award-base').textContent = tender.basePrice || "未公告底價";
     document.getElementById('detail-award-amount').textContent = tender.awardAmount || "未定";
