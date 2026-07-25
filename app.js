@@ -368,9 +368,9 @@ function init() {
   
   // Dynamic update date binding
   if (window.tendersLastUpdated) {
-    const footerDateEl = document.getElementById('footer-date-label');
-    if (footerDateEl) {
-      footerDateEl.textContent = `標案更新：${window.tendersLastUpdated} (以政府公告為準)`;
+    const headerDateEl = document.getElementById('header-date-label');
+    if (headerDateEl) {
+      headerDateEl.textContent = `標案更新：${window.tendersLastUpdated} (以政府公告為準)`;
     }
     
     // Extract MM/DD (e.g. 2026/07/25 17:15 -> 07/25)
