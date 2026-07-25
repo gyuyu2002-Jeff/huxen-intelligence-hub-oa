@@ -6,6 +6,7 @@ import base64
 import datetime
 import os
 import xml.etree.ElementTree as ET
+import time
 
 # Configuration
 KEYWORDS = ["影印機", "複合機", "事務機", "印表機", "MFP"]
@@ -155,15 +156,28 @@ def extract_budget_text(budget_str):
         return f"{amount} 元"
     return budget_str
 
-def extract_location(address):
-    """Extract county/city name from address."""
-    if not address:
-        return "未知"
-    match = re.search(r'(台北市|新北市|基隆市|桃園市|新竹市|新竹縣|苗栗縣|台中市|彰化縣|南投縣|雲林縣|嘉義市|嘉義縣|台南市|高雄市|屏東縣|宜蘭縣|花蓮縣|台東縣|澎湖縣|金門縣|連江縣|台北|新北|基隆|桃園|新竹|苗栗|台中|彰化|南投|雲林|嘉義|台南|高雄|屏東|宜蘭|花蓮|台東|澎湖|金門|連江)', address)
-    if match:
-        # Normalize: strip '市' or '縣' for display consistency
-        loc = match.group(1)
-        return loc.replace("市", "").replace("縣", "")
+def extract_location(address, agency=""):
+    """Extract county/city name from address or fall back to matching from the agency name."""
+    if address:
+        match = re.search(r'(台北市|新北市|基隆市|桃園市|新竹市|新竹縣|苗栗縣|台中市|彰化縣|南投縣|雲林縣|嘉義市|嘉義縣|台南市|高雄市|屏東縣|宜蘭縣|花蓮縣|台東縣|澎湖縣|金門縣|連江縣|台北|新北|基隆|桃園|新竹|苗栗|台中|彰化|南投|雲林|嘉義|台南|高雄|屏東|宜蘭|花蓮|台東|澎湖|金門|連江|臺北|臺中|臺南)', address)
+        if match:
+            # Normalize: strip '市' or '縣' for display consistency and convert 臺 to 台
+            loc = match.group(1)
+            return loc.replace("市", "").replace("縣", "").replace("臺", "台")
+            
+    if agency:
+        # Check if agency contains city names
+        match = re.search(r'(台北|新北|基隆|桃園|新竹|苗栗|台中|彰化|南投|雲林|嘉義|台南|高雄|屏東|宜蘭|花蓮|台東|澎湖|金門|連江|臺北|臺中|臺南)', agency)
+        if match:
+            return match.group(1).replace("臺", "台")
+        # Custom logic for major organizations
+        if "台灣電力" in agency:
+            return "台北"
+        if "榮民總醫院" in agency:
+            if "台中" in agency or "臺中" in agency: return "台中"
+            if "高雄" in agency: return "高雄"
+            return "台北"
+            
     return "未知"
 
 def fetch_json(url):
@@ -235,6 +249,8 @@ def main():
         detail_url = f"https://pcc-api.openfun.app/api/tender?unit_id={unit_id}&job_number={job_number}"
         print(f"Fetching details for {case.get('brief', {}).get('title')}...")
         detail_res = fetch_json(detail_url)
+        # Sleep for 1.5 seconds to respect the API rate limit and avoid 429
+        time.sleep(1.5)
         
         # Get details
         detail_data = {}
@@ -246,13 +262,7 @@ def main():
         agency = detail_data.get('機關資料:機關名稱') or case.get('unit_name', '未知機關')
         
         address = detail_data.get('機關資料:機關地址') or ""
-        location = extract_location(address)
-        if location == "未知" and "臺中" in agency:
-            location = "台中"
-        elif location == "未知" and "臺北" in agency:
-            location = "台北"
-        elif location == "未知" and "高雄" in agency:
-            location = "高雄"
+        location = extract_location(address, agency)
             
         budget_str = detail_data.get('採購資料:預算金額') or ""
         budget_display = extract_budget_text(budget_str)
