@@ -191,12 +191,10 @@ def generate_mock_tender_ai_analysis(title, agency, budget):
         "aiStrategy": strategy
     }
 
-def get_pcc_url(filename):
-    """Generate the official government procurement URL using base64 encoding of numerical digits from the filename."""
-    digits = "".join(c for c in filename if c.isdigit())
-    if digits:
-        encoded = base64.b64encode(digits.encode('ascii')).decode('ascii').rstrip('=')
-        return f"https://web.pcc.gov.tw/tps/QueryTender/query/searchTenderDetail?pkPmsMain={encoded}"
+def get_pcc_url(filename, date_int):
+    """Generate the official government procurement redirector URL."""
+    if filename and date_int:
+        return f"https://web.pcc.gov.tw/prkms/tender/common/noticeDate/redirectPublic?ds={date_int}&fn={filename}.xml"
     return "https://web.pcc.gov.tw/"
 
 def parse_roc_date(date_str):
@@ -371,7 +369,7 @@ def main():
         if len(details_desc) > 300:
             details_desc = details_desc[:300] + "..."
             
-        source_url = get_pcc_url(filename)
+        source_url = get_pcc_url(filename, case.get('date'))
         
         # AI strategy analysis
         ai_analysis = None
@@ -449,7 +447,7 @@ def main():
             else:
                 date_display = "未知"
                 
-        source_url = get_pcc_url(filename)
+        source_url = get_pcc_url(filename, case.get('date'))
         
         processed_awards.append({
             "id": award_idx,
