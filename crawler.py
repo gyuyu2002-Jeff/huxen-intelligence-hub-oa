@@ -119,38 +119,107 @@ def generate_market_watch_with_gemini(news_content, api_key):
         print(f"Error invoking Gemini API: {e}")
         return None
 
-def get_historical_reference(title, agency, processed_awards):
-    """Find a matching resolved case or compute general averages to construct the history context."""
-    matched_case = None
+def fetch_historical_records_for_active_case(agency, title, location, processed_awards):
+    """Dynamically queries the PCC API for past resolved cases of the same agency within the last 3 years."""
+    print(f"Searching historical records for agency: {agency}...")
     
-    # 1. Look for a matching agency or keyword match in the detailed resolved awards list
-    for aw in processed_awards:
-        # Check if agency is similar
-        if aw["agency"][:5] in agency or agency[:5] in aw["agency"]:
-            matched_case = aw
-            break
-        # Check keyword match
-        keywords = ["影印機", "複合機", "印表機", "租用", "租賃"]
-        common = [w for w in keywords if w in title and w in aw["title"]]
-        if len(common) >= 2:
-            matched_case = aw
+    # 1. Clean agency name for search (e.g. remove department details)
+    search_agency = agency
+    for suffix in ["機電系統工程處", "採購部", "總管理處", "秘書室", "總務室", "分局", "分署"]:
+        if suffix in search_agency:
+            search_agency = search_agency.split(suffix)[0]
             
-    # Parse budget string to numeric value for math
-    def parse_val(s):
-        if not s or "未定" in s:
-            return 0
-        digits = "".join(c for c in s if c.isdigit() or c == '.')
-        try:
-            if "萬" in s:
-                return float(digits) * 10000
-            return float(digits)
-        except:
-            return 0
-
-    if matched_case:
-        award_val = parse_val(matched_case["awardAmount"])
-        base_val = parse_val(matched_case["basePrice"])
-        budget_val = parse_val(matched_case["budget"])
+    # Query searchbytitle for the agency
+    url = "https://pcc-api.openfun.app/api/searchbytitle?" + urllib.parse.urlencode({"query": search_agency})
+    res = fetch_json(url)
+    time.sleep(2.5) # respect rate limit
+    
+    matched_records = []
+    if res and 'records' in res:
+        for record in res['records']:
+            brief = record.get('brief', {})
+            b_type = brief.get('type', '')
+            b_title = brief.get('title', '')
+            record_agency = record.get('unit_name', '')
+            date_int = record.get('date', 0) # YYYYMMDD format (e.g. 20260723)
+            
+            # Filter condition 1: Must be resolved award
+            is_award = any(aw in b_type for aw in ["決標公告", "更正決標公告", "決標"])
+            # Filter condition 2: Same agency name (starts with search_agency or matches closely)
+            is_same_agency = search_agency[:5] in record_agency or record_agency[:5] in search_agency
+            # Filter condition 3: Within past 3 years (date_int >= 20230725)
+            is_recent = date_int >= 20230725
+            # Filter condition 4: Copier / Printer keywords
+            keywords = ["影印", "複合", "印表", "事務", "租", "維護", "MFP"]
+            is_copier = any(kw in b_title for kw in keywords)
+            
+            if is_award and is_same_agency and is_recent and is_copier:
+                matched_records.append(record)
+                        
+    # Sort matched records by date descending
+    matched_records = sorted(matched_records, key=lambda x: x.get('date', 0), reverse=True)
+    
+    # Fetch details of the top 3 newest resolved records to get actual budgets/amounts
+    top_matches = matched_records[:3]
+    history_list = []
+    
+    for mr in top_matches:
+        unit_id = mr.get('unit_id')
+        job_number = mr.get('job_number')
+        
+        detail_url = f"https://pcc-api.openfun.app/api/tender?unit_id={unit_id}&job_number={job_number}"
+        print(f"Fetching detail for similar historical case: {mr.get('brief', {}).get('title')}...")
+        detail_res = fetch_json(detail_url)
+        time.sleep(2.5)
+        
+        if not detail_res or 'records' not in detail_res or len(detail_res['records']) == 0:
+            continue
+            
+        detail_data = {}
+        for r in detail_res['records']:
+            if '決標' in r.get('brief', {}).get('type', ''):
+                detail_data = r.get('detail', {})
+                break
+        if not detail_data:
+            detail_data = detail_res['records'][0].get('detail', {})
+            
+        h_title = detail_data.get('已公告資料:標案名稱') or detail_data.get('採購資料:標案名稱') or mr.get('brief', {}).get('title', '未知標案')
+        h_agency = detail_data.get('機關資料:機關名稱') or mr.get('unit_name', '')
+        
+        budget_str = detail_data.get('已公告資料:預算金額') or detail_data.get('採購資料:預算金額') or ""
+        budget_display = extract_budget_text(budget_str)
+        
+        award_str = detail_data.get('決標資料:總決標金額') or ""
+        award_display = extract_budget_text(award_str)
+        
+        base_str = detail_data.get('決標資料:底價金額') or ""
+        base_display = extract_budget_text(base_str)
+        
+        raw_date = detail_data.get('決標資料:決標日期') or ""
+        if raw_date:
+            date_display = raw_date
+        else:
+            date_int = mr.get('date', 0)
+            if date_int:
+                date_str = str(date_int)
+                date_display = f"{int(date_str[:4])-1911}/{date_str[4:6]}/{date_str[6:]}"
+            else:
+                date_display = "未知"
+                
+        def parse_val(s):
+            if not s or "未定" in s:
+                return 0
+            digits = "".join(c for c in s if c.isdigit() or c == '.')
+            try:
+                if "萬" in s:
+                    return float(digits) * 10000
+                return float(digits)
+            except:
+                return 0
+                
+        award_val = parse_val(award_display)
+        base_val = parse_val(base_display)
+        budget_val = parse_val(budget_display)
         
         ratio = 0.0
         if award_val > 0 and base_val > 0:
@@ -158,46 +227,53 @@ def get_historical_reference(title, agency, processed_awards):
         elif award_val > 0 and budget_val > 0:
             ratio = (award_val / budget_val) * 100
             
-        if ratio > 0:
-            ratio_str = f"{ratio:.1f}%"
-            return {
-                "found": True,
-                "text": f"- 往年類似決標參考案：{matched_case['title']}\n- 決標日期：{matched_case['date']}\n- 預算金額：{matched_case['budget']} / 得標金額：{matched_case['awardAmount']}\n- 歷史得標折數：{ratio_str}",
-                "ratio": ratio
-            }
-
-    # 2. If no direct match, calculate average of all resolved cases that have valid prices
-    ratios = []
-    for aw in processed_awards:
-        award_val = parse_val(aw["awardAmount"])
-        base_val = parse_val(aw["basePrice"])
-        budget_val = parse_val(aw["budget"])
+        ratio_display = f"{ratio:.1f}%" if ratio > 0 else "未知"
         
-        ratio = 0.0
-        if award_val > 0 and base_val > 0:
-            ratio = (award_val / base_val) * 100
-        elif award_val > 0 and budget_val > 0:
-            ratio = (award_val / budget_val) * 100
-            
-        if 50 < ratio <= 100: # filter out unrealistic ratios
-            ratios.append(ratio)
-            
-    if ratios:
-        avg_ratio = sum(ratios) / len(ratios)
+        history_list.append({
+            "title": h_title,
+            "agency": h_agency,
+            "date": date_display,
+            "budget": budget_display,
+            "awardAmount": award_display,
+            "basePrice": base_display,
+            "ratio": ratio_display,
+            "ratioNum": ratio if ratio > 0 else 90.0
+        })
+        
+    return history_list
+
+def get_historical_reference_text(history_list):
+    """Builds history prompt context string from matched historical records."""
+    if not history_list:
         return {
-            "found": False,
-            "text": f"- 往年全台類似標案平均得標折扣率：約 {avg_ratio:.1f}% (依據 {len(ratios)} 筆歷史決標案計算)",
-            "ratio": avg_ratio
+            "text": "- 本機關近三年內無同類型歷史決標紀錄。",
+            "ratio": 90.0,
+            "found": False
         }
         
+    text_blocks = []
+    ratios = []
+    for h in history_list:
+        text_blocks.append(
+            f"- 歷史相似標案：{h['title']}\n"
+            f"  決標機關：{h['agency']}\n"
+            f"  決標日期：{h['date']}\n"
+            f"  預算金額：{h['budget']} / 底價：{h['basePrice']} / 決標金額：{h['awardAmount']}\n"
+            f"  得標折扣率：{h['ratio']}"
+        )
+        if h["ratioNum"] > 0:
+            ratios.append(h["ratioNum"])
+            
+    avg_ratio = sum(ratios) / len(ratios) if ratios else 90.0
+    
     return {
-        "found": False,
-        "text": "- 往年類似標案平均得標折扣率：約 89.5% (全台事務機行情參考值)",
-        "ratio": 89.5
+        "text": "\n".join(text_blocks),
+        "ratio": avg_ratio,
+        "found": len(ratios) > 0
     }
 
 def generate_tender_ai_analysis(tender_title, agency, budget, details, history_context, api_key):
-    """Generate professional competitor threat, target price, and sales strategy for a given tender."""
+    """Generate professional competitor threat and target price for a given tender."""
     if not api_key:
         return None
     
@@ -218,8 +294,7 @@ def generate_tender_ai_analysis(tender_title, agency, budget, details, history_c
 請代表「互盛資訊 (RICOH)」進行智能投標沙盤推演與對手分析，請結合上述提供的「本案歷史決標數據參考」（例如若已有前案得標折扣率，請在底價估計中明示分析），並精確輸出為以下 JSON 格式（繁體中文，不要包含任何 Markdown 標記，不要寫 ```json 字樣）：
 {{
   "aiCompetitor": "分析主要的競爭對手是誰（如台灣富士全錄 Fujifilm BI、台灣佳能 Canon、東芝 Toshiba 或 Epson 噴墨印表機），評估他們的威脅程度與優勢劣勢，字數在 70 字內。",
-  "aiTargetPrice": "建議互盛的合理得標底價區間預估或報價折數策略（請結合上述歷史決標數據進行分析，如：參考前案歷史折數XX%，預估本案合理得標區間為XX%-XX%），字數在 70 字內。",
-  "aiStrategy": "給予互盛業務同仁的防禦與強攻策略（例如：強調 Ricoh 的零信任資安認證、文件掃描客製流程、或每月抄表維護責任等，如何寫規格防堵對手），字數在 80 字內。"
+  "aiTargetPrice": "建議互盛的合理得標底價區間預估或報價折數策略（請結合上述歷史決標數據進行分析，如：參考前案歷史折數XX%，預估本案合理得標區間為XX%-XX%），字數在 70 字內。"
 }}
 """
     body = {
@@ -268,21 +343,17 @@ def generate_mock_tender_ai_analysis(title, agency, budget, history_ref):
 
     if "法院" in agency or "檢察署" in agency or "稅局" in agency or "警察" in agency:
         competitor = "此案為高資安敏感機關，主要對手為台灣富士全錄 (Fujifilm BI)，其在司法與公家核心機關佔有率高，主打硬體加密防護。"
-        strategy = "建議同仁積極推廣 Ricoh 零信任資安架構，主打硬碟資料防護抹除（符合公部門最新資安指引）與完整用印日誌留存，在資安面上設立防線。"
         target_price += " 司法與警政機關對後續維護要求極高，不宜過度砍價搶標。"
     elif "學校" in agency or "大學" in agency or "國小" in agency or "高中" in agency:
         competitor = "教育單位預算極為吃緊，需嚴防台灣愛普生 (Epson) 以省電型微噴印表機進行低單價搶標，以及 Canon 以低階複合機切入。"
-        strategy = "主攻複合機與列印管理系統之整合（如刷卡安全取件及師生計費點數拷貝），強調互盛優於同業的 2 小時快速到府維修與定期保養承諾。"
         target_price += " 學校單位為傳統價格紅海，競爭極其激烈，需注意對手以破壞性低單價搶標。"
     else:
         competitor = "主要競爭對手為台灣佳能 (Canon) 與夏普 (Sharp)，兩者在此類公務機關多以租賃月租費與單張抄表費用折扣進行價格戰。"
-        strategy = "主打互盛 Smart Integration 雲端文件流程，強調能與該單位現有的文件簽核系統整合，並凸顯綠色採購環保與節能標章優勢。"
         target_price += " 建議同仁提出符合大印量的合理標準合約，避免捲入無謂殺價。"
         
     return {
         "aiCompetitor": competitor,
-        "aiTargetPrice": target_price,
-        "aiStrategy": strategy
+        "aiTargetPrice": target_price
     }
 
 def get_pcc_url(filename, date_int):
@@ -399,7 +470,7 @@ def main():
     # 2. Fetch details for top resolved awards first to build our historical database reference
     print("Fetching details for top resolved awards...")
     sorted_awards = sorted(unique_awards.values(), key=lambda x: x.get('date', 0), reverse=True)
-    top_awards = sorted_awards[:8]
+    top_awards = sorted_awards[:6]
     processed_awards = []
     award_idx = 1
     for case in top_awards:
@@ -465,7 +536,7 @@ def main():
     # 3. Fetch details for top active tenders
     print(f"Fetching details for top active tenders...")
     sorted_cases = sorted(unique_cases.values(), key=lambda x: x.get('date', 0), reverse=True)
-    top_cases = sorted_cases[:10]
+    top_cases = sorted_cases[:6] # Limit to top 6 to prevent 429 rate limit errors
     
     processed_tenders = []
     today = datetime.date.today()
@@ -521,8 +592,11 @@ def main():
             
         source_url = get_pcc_url(filename, case.get('date'))
         
-        # Calculate dynamic history reference for current active case
-        history_ref = get_historical_reference(title, agency, processed_awards)
+        # 1. Fetch exact historical records of the same agency & title keywords dynamically
+        history_records = fetch_historical_records_for_active_case(agency, title, location, processed_awards)
+        
+        # 2. Format history records into text block and average ratio for AI/Mock decision
+        history_ref = get_historical_reference_text(history_records)
         
         # AI strategy analysis
         ai_analysis = None
@@ -546,7 +620,7 @@ def main():
           "details": details_desc,
           "aiCompetitor": ai_analysis.get("aiCompetitor", ""),
           "aiTargetPrice": ai_analysis.get("aiTargetPrice", ""),
-          "aiStrategy": ai_analysis.get("aiStrategy", "")
+          "historyRecords": history_records  # Include dynamic historical records for the frontend
         })
         tender_idx += 1
         
