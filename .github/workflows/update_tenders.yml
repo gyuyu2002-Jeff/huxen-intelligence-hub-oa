@@ -1,0 +1,39 @@
+name: Daily Tender Auto-Update
+
+on:
+  schedule:
+    # 每天 UTC 23:30 執行（即台北時間早上 07:30，UTC+8）
+    - cron: '30 23 * * *'
+  workflow_dispatch: # 允許在 GitHub 網頁介面上手動點擊執行
+
+permissions:
+  contents: write # 賦予工作流權限以將更新後的資料寫回儲存庫
+
+jobs:
+  update-tenders:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: 檢出專案代碼 (Checkout)
+      uses: actions/checkout@v4
+
+    - name: 設定 Python 環境
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+
+    - name: 執行標案爬蟲腳本
+      run: python crawler.py
+
+    - name: 自動提交更新並推回儲存庫 (Commit & Push)
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git add tenders_data.js
+        # 僅在資料有變動時才提交，防止產生空提交
+        if git diff --staged --quiet; then
+          echo "今日標案資料無變動，跳過提交。"
+        else
+          git commit -m "🤖 自動更新標案數據: $(date +'%Y-%m-%d %H:%M')"
+          git push
+        fi

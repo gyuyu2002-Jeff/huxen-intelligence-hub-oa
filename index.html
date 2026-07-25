@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>互盛情報中樞-OA版 | 標案與事務機商機雷達</title>
+  <meta name="description" content="整合公家標案、RICOH 事務機情報與市場行動建議的互盛內部情報介面（OA專屬版）。">
+  
+  <!-- Google Fonts: Outfit & Noto Sans TC -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Outfit:wght@400;600;800;900&display=swap" rel="stylesheet">
+  
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Topbar Header -->
+  <header class="topbar">
+    <div class="brand-lockup">
+      <div class="brand-mark">互</div>
+      <div class="brand-text">
+        <span class="eyebrow">HUXEN INTELLIGENCE</span>
+        <span class="brand-title">互盛情報中樞-OA版</span>
+      </div>
+    </div>
+    
+    <div class="top-actions">
+      <label class="search-box" aria-label="搜尋情報">
+        <span class="search-icon">⌕</span>
+        <input type="text" id="search-input" placeholder="搜尋標案、機關或地區">
+        <kbd>⌘ K</kbd>
+      </label>
+      
+      <div class="sync-state">
+        <i class="sync-dot"></i>每日 07:30 自動更新
+      </div>
+      
+      <button class="btn-refresh" id="refresh-button">重新整理畫面</button>
+    </div>
+  </header>
+
+  <!-- Status Strip -->
+  <div class="status-strip">
+    <span class="status-label">情報範圍</span>
+    <span class="badge-oa">標案：事務機（影印機／複合機／MFP）</span>
+    <span class="divider"></span>
+    <span class="badge-green">RICOH：僅事務機／文件流程</span>
+    <span class="badge-purple">已排除監視器、門禁、網通、會議等非 OA 內容</span>
+    <span class="divider"></span>
+    <span>競品追蹤 6 品牌</span>
+    <button class="btn-guide-trigger" id="btn-guide-trigger">🔍 標案搜尋不遺漏指南</button>
+  </div>
+
+  <main>
+    <!-- Hero Section -->
+    <section class="hero">
+      <div class="hero-info">
+        <p class="section-kicker">DAILY FOCUS · 2026.07.24</p>
+        <h1>
+          <span>把握七月下旬截止案</span>
+          <span class="highlight">先把服務條件說清楚</span>
+        </h1>
+        <p class="hero-copy">綜合目前招標中的事務機標案、既有 RICOH 與競品官方情報整理。</p>
+      </div>
+      
+      <div class="hero-signal" aria-hidden="true">
+        <div class="signal-orbit orbit-one"></div>
+        <div class="signal-orbit orbit-two"></div>
+        <div class="signal-core">
+          <span class="word">今日</span>
+          <small>DAILY MOTTO</small>
+        </div>
+      </div>
+      
+      <aside class="today-focus">
+        <span class="focus-tag">標語解讀</span>
+        <h2>四日內截止案件，先確認服務與維護範圍</h2>
+        <p>多個公家機關影印機與複合機租賃採購案多在七月下旬截止。業務同仁應優先確認機關的需求範圍、租賃維修條件與資安檢驗清單，再提出可落地的整合方案與報價。</p>
+        <div class="motto-sources">
+          <span>標案</span>
+          <span class="source-red">RICOH</span>
+          <span>競品</span>
+          <span>市場</span>
+        </div>
+      </aside>
+    </section>
+
+    <!-- Metrics Section -->
+    <section class="metrics" aria-label="情報摘要">
+      <article class="metric-item">
+        <span class="metric-num" id="metric-new-tenders">5</span>
+        <div class="metric-label">
+          <strong>新標案</strong>
+          <small>07/24 仍在招標</small>
+        </div>
+        <em class="metric-tag green">官方來源</em>
+      </article>
+      
+      <article class="metric-item">
+        <span class="metric-num">3</span>
+        <div class="metric-label">
+          <strong>高優先</strong>
+          <small>依預算與商機評估</small>
+        </div>
+        <em class="metric-tag amber">需跟進</em>
+      </article>
+      
+      <article class="metric-item">
+        <span class="metric-num">3</span>
+        <div class="metric-label">
+          <strong>RICOH 情報</strong>
+          <small>事務機／文件流程</small>
+        </div>
+        <em class="metric-tag blue">已過濾</em>
+      </article>
+      
+      <article class="metric-item">
+        <span class="metric-num" id="metric-saved">0</span>
+        <div class="metric-label">
+          <strong>已收藏</strong>
+          <small>待業務進一步確認</small>
+        </div>
+        <em class="metric-tag blue">持續追蹤</em>
+      </article>
+    </section>
+
+    <!-- Dashboard Grid -->
+    <div class="dashboard-grid">
+      <!-- Left Panel: Tenders Radar -->
+      <section class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <p class="kicker">OPPORTUNITY RADAR</p>
+            <h2>公家標案雷達</h2>
+            <span class="subtitle">依截止日與商機適配度排序</span>
+          </div>
+          <div class="panel-count">
+            <b class="count-num" id="result-count-num">0</b>
+            <span>件符合</span>
+          </div>
+        </div>
+        
+        <div class="tender-list" id="tender-list">
+          <!-- Dynamically Rendered by app.js -->
+        </div>
+      </section>
+
+      <!-- Right Panel: Market Watch -->
+      <aside class="right-rail">
+        <section class="panel">
+          <div class="panel-header compact">
+            <div class="panel-title">
+              <p class="kicker">MARKET WATCH</p>
+              <h2>市場風向</h2>
+            </div>
+          </div>
+          
+          <div style="padding-top: 16px;">
+            <article class="trend-card red">
+              <span class="trend-icon">SEC</span>
+              <div class="trend-info">
+                <strong>資安合規</strong>
+                <p>零信任架構、設備硬碟防護與管理日誌留存正全面進入政府機關採購規格限制中。</p>
+              </div>
+            </article>
+
+            <article class="trend-card green">
+              <span class="trend-icon">ESG</span>
+              <div class="trend-info">
+                <strong>節能採購</strong>
+                <p>綠色能源效率標章、耗材碳足跡數據與包裝回收率已成為政商客戶評選加分項目。</p>
+              </div>
+            </article>
+
+            <article class="trend-card">
+              <span class="trend-icon">AI</span>
+              <div class="trend-info">
+                <strong>智慧維運</strong>
+                <p>用量主動預測、故障自動告警及遠端在線排除，可大幅降低客戶總持有維修成本。</p>
+              </div>
+            </article>
+          </div>
+        </section>
+      </aside>
+    </div>
+
+    <!-- RICOH Business Brief Panel -->
+    <section class="panel ricoh-panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <p class="kicker">RICOH BUSINESS BRIEF</p>
+          <h2>RICOH 事務機情報</h2>
+          <span class="subtitle">只收錄多功能事務機、列印管理、文件流程與相關服務</span>
+        </div>
+        <span class="badge-green-outline">✓ 相機/個人電子內容已排除</span>
+      </div>
+      
+      <div class="news-grid">
+        <article class="news-card">
+          <div class="news-head">
+            <span class="news-idx">01</span>
+            <span class="news-tag">產品</span>
+            <time class="news-date">07/22</time>
+          </div>
+          <h3>新世代 A3 彩色多功能事務機：安全與雲端工作流程成為採購重點</h3>
+          <p>建議業務同仁在提案時整理機型間的細微差異，強調符合最新的政府資安規格，並積極引導既有租賃設備升級方案。</p>
+        </article>
+
+        <article class="news-card">
+          <div class="news-head">
+            <span class="news-idx">02</span>
+            <span class="news-tag">服務</span>
+            <time class="news-date">07/21</time>
+          </div>
+          <h3>文件數位化與遠端維運需求升溫，MFP 從設備轉向流程入口</h3>
+          <p>現今標案多著重於文件流轉整合。適合將 RICOH 智慧掃描、權限認證、碳排查分析與主動式維護打包成整合性解決方案提案。</p>
+        </article>
+
+        <article class="news-card">
+          <div class="news-head">
+            <span class="news-idx">03</span>
+            <span class="news-tag">資安</span>
+            <time class="news-date">07/19</time>
+          </div>
+          <h3>列印設備韌體與管理介面安全：公部門標案常見檢核清單</h3>
+          <p>可將此檢核清單轉化為業務前期的「售前客戶問卷」，協助我們提前掌握客戶單位的網路防火牆與權限條件，設計最合規規格。</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- Competitor Playbook Panel -->
+    <section class="panel competitor-panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <p class="kicker">COMPETITOR PLAYBOOK</p>
+          <h2>事務機競品情報與業務話術</h2>
+          <span class="subtitle">以競品公開主張整理觀察重點，話術以需求訪談與可驗證內容為原則</span>
+        </div>
+        <span class="badge-green-outline">6 品牌已啟用</span>
+      </div>
+      
+      <div class="competitor-grid" id="competitor-grid">
+        <!-- Dynamically Rendered by app.js -->
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+      <span>互盛情報中樞 · OA版 · 內部決策介面</span>
+      <span>標案更新日期 2026/07/24，投標前請以政府電子採購網公告為準。</span>
+    </footer>
+  </main>
+
+  <!-- MODAL 1: 標案搜尋不遺漏指南 -->
+  <div class="modal-overlay" id="guide-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>🔍 事務機標案搜尋不遺漏指南</h3>
+        <button class="btn-close-modal" aria-label="關閉說明">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="guide-sec">
+          <h4>📌 核心心法：關鍵字聯集 + 採購分類雙軌訂閱</h4>
+          <p>機關公告標案時使用的名稱多有差異，若僅用「影印機」單一關鍵字，將會遺漏大量使用「印表機」或「勞務委外」包裝的事務機招標商機。因此，必須採取多字軌、雙向分類代碼監控策略。</p>
+        </div>
+        
+        <div class="guide-sec">
+          <h4>1. 關鍵字黃金矩陣組合</h4>
+          <p>請於採購網關鍵字欄位使用<b>聯集式 (OR)</b> 進行設定，並設定篩選條件排除無關內容：</p>
+          <table class="guide-table">
+            <thead>
+              <tr>
+                <th style="width: 25%">類別</th>
+                <th>檢索關鍵字組合</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><b>核心設備類 (必搜)</b></td>
+                <td><span class="guide-tag blue">影印機</span> <span class="guide-tag blue">複合機</span> <span class="guide-tag blue">複印機</span> <span class="guide-tag blue">事務機</span> <span class="guide-tag blue">印表機</span> <span class="guide-tag blue">MFP</span></td>
+              </tr>
+              <tr>
+                <td><b>規格與系統</b></td>
+                <td><span class="guide-tag">多功能複合機</span> <span class="guide-tag">列印管理</span> <span class="guide-tag">控管系統</span> <span class="guide-tag">數位複合機</span></td>
+              </tr>
+              <tr>
+                <td><b>服務契約類 (高機率)</b></td>
+                <td><span class="guide-tag">租賃</span> <span class="guide-tag">租用</span> <span class="guide-tag">按張計費</span> <span class="guide-tag">抄表計費</span> <span class="guide-tag">勞務委外</span> <span class="guide-tag">維護</span> <span class="guide-tag">耗材</span></td>
+              </tr>
+              <tr>
+                <td><b>排除關鍵字 (防雜訊)</b></td>
+                <td><span class="guide-tag red">3D印表機</span> <span class="guide-tag red">相機</span> <span class="guide-tag red">照相機</span> <span class="guide-tag red">印刷機</span> <span class="guide-tag red">工程施工</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="guide-sec">
+          <h4>2. 聯合國產品分類代碼 (CPC Code) 鎖定</h4>
+          <p>部分案件標案名稱可能簡寫為「115年行政設備採購」，僅用關鍵字搜尋不到。此時必須鎖定以下分類代碼進行篩選：</p>
+          <ul class="guide-list">
+            <li><b>CPC 45212</b> - 數位式多功能影印機 / 複合機</li>
+            <li><b>CPC 45211</b> - 類比式影印機 / 複印設備</li>
+            <li><b>CPC 45160</b> - 辦公机器及設備類</li>
+            <li><b>CPC 84910</b> - 影印及複製勞務委外服務（適用於大印量委外按張抄表計費案）</li>
+          </ul>
+        </div>
+
+        <div class="guide-sec">
+          <h4>3. 雙軌訂閱主動防漏</h4>
+          <ul class="guide-list">
+            <li><b>第一軌：臺灣銀行共同供應契約監控</b><br>全台公家機關約有 80% 的事務機是下「臺銀共契」。必須指派專人監控臺灣銀行採購部的招標進度（包含公開閱覽規格、決標價格及下單限額），一旦共契新一期上架，即可提前部署。</li>
+            <li><b>第二軌：獨立個案投標提醒</b><br>部分高階標案（如結合零信任資安、客製化數位工作流流程）因金額過高或規格特殊，會採取獨立公開招標。需將關鍵字矩陣設為政府電子採購網的「每日Email自動訂閱機制」，確保於公告當天收到即時信件。</li>
+          </ul>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <span>互盛資訊 · 標案搜尋教戰守則</span>
+        <span>最後更新版本: v1.0 (2026)</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2: 標案詳細資料 -->
+  <div class="modal-overlay" id="detail-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="detail-title">標案標題</h3>
+        <button class="btn-close-modal" aria-label="關閉">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="guide-sec">
+          <p id="detail-agency-loc" style="font-size: 13px; color: var(--muted); margin-bottom: 12px;"></p>
+          <table class="guide-table">
+            <tbody>
+              <tr>
+                <th style="width: 30%">預算金額</th>
+                <td id="detail-budget">--</td>
+              </tr>
+              <tr>
+                <th>截止日期</th>
+                <td id="detail-deadline">--</td>
+              </tr>
+              <tr>
+                <th>剩餘天數</th>
+                <td id="detail-days">--</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="guide-sec">
+          <h4>📋 詳細說明與商機分析</h4>
+          <div id="detail-desc" style="margin-top: 8px;">--</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <a href="#" target="_blank" id="detail-link-btn" class="btn-refresh" style="text-align: center; text-decoration: none; width: 100%;">前往政府電子採購網 ↗</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Application Logic -->
+  <script src="tenders_data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
