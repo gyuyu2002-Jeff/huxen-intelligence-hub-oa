@@ -245,6 +245,7 @@ function renderTenders() {
                 <span>截止 <b>${t.deadline}</b></span>
                 <span class="${t.days <= 10 ? 'urgent' : ''}">剩 ${t.days} 天</span>
                 <a href="${t.sourceUrl}" target="_blank" rel="noreferrer" class="tender-link">開啟案件 ↗</a>
+                <button class="tender-btn-ai" onclick="openTenderDetail(${t.id}, 'active')">✨ AI 投標分析</button>
               </div>
             </div>
             <button class="btn-save ${isSaved ? 'saved' : ''}" onclick="toggleSave(${t.id}, event)" aria-label="${isSaved ? '取消收藏' : '收藏'}">
@@ -269,6 +270,7 @@ function renderTenders() {
                 <span>底價 <b>${t.basePrice}</b></span>
                 <span>決標日 <b>${t.date}</b></span>
                 <a href="${t.sourceUrl}" target="_blank" rel="noreferrer" class="tender-link" style="color: var(--green); border-color: var(--green-soft);">決標公告 ↗</a>
+                <button class="tender-btn-ai award" onclick="openTenderDetail(${t.id}, 'award')">🏆 決標行情分析</button>
               </div>
             </div>
           </article>
