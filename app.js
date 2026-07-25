@@ -361,10 +361,59 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
+// Render Market Watch Trends
+function renderMarketWatch() {
+  const panel = document.getElementById('market-watch-panel');
+  if (!panel) return;
+  
+  const marketWatchData = window.tendersMarketWatch || [
+    {
+      code: "SEC",
+      title: "資安合規",
+      text: "零信任架構、設備硬碟防護與管理日誌留存正全面進入政府機關採購規格限制中。",
+      tone: "red"
+    },
+    {
+      code: "ESG",
+      title: "節能採購",
+      text: "綠色能源效率標章、耗材碳足跡數據與包裝回收率已成為政商客戶評選加分項目。",
+      tone: "green"
+    },
+    {
+      code: "AI",
+      title: "智慧維運",
+      text: "用量主動預測、故障自動告警及遠端在線排除，可大幅降低客戶總持有維修成本。",
+      tone: "blue"
+    }
+  ];
+
+  const headerHtml = `
+    <div class="panel-header compact">
+      <div class="panel-title">
+        <p class="kicker">MARKET WATCH</p>
+        <h2>市場風向</h2>
+      </div>
+    </div>
+  `;
+  
+  const listHtml = marketWatchData.map(e => `
+    <article class="trend-card ${e.tone}">
+      <span class="trend-icon">${e.code}</span>
+      <div class="trend-info">
+        <strong>${e.title}</strong>
+        <p>${e.text}</p>
+      </div>
+    </article>
+  `).join('');
+  
+  panel.innerHTML = headerHtml + `<div style="padding-top: 16px;">${listHtml}</div>`;
+}
+
 // 8. Initialization
 function init() {
   renderTenders();
   renderCompetitors();
+  renderMarketWatch();
   
   // Dynamic update date binding
   if (window.tendersLastUpdated) {
