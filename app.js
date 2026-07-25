@@ -150,6 +150,7 @@ const tenderListEl = document.getElementById('tender-list');
 const resultCountEl = document.getElementById('result-count-num');
 const metricNewTendersEl = document.getElementById('metric-new-tenders');
 const metricSavedEl = document.getElementById('metric-saved');
+const metricAwardsEl = document.getElementById('metric-awards');
 const searchInputEl = document.getElementById('search-input');
 const refreshButtonEl = document.getElementById('refresh-button');
 const competitorGridEl = document.getElementById('competitor-grid');
@@ -280,6 +281,9 @@ function renderTenders() {
   resultCountEl.textContent = filtered.length;
   metricNewTendersEl.textContent = tenders.length;
   metricSavedEl.textContent = savedTenders.length;
+  if (metricAwardsEl) {
+    metricAwardsEl.textContent = (window.tendersAwardData || []).length;
+  }
 }
 
 function renderCompetitors() {
