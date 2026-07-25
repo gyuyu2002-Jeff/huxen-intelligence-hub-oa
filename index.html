@@ -141,6 +141,34 @@
           </div>
         </div>
         
+        <!-- Filter and Sort Toolbar (ezbid Style) -->
+        <div class="tender-filters">
+          <div class="filter-group">
+            <select id="filter-budget" class="filter-select" aria-label="篩選預算金額">
+              <option value="">💰 不限預算金額</option>
+              <option value="under-50">50 萬以下</option>
+              <option value="50-150">50 萬 ~ 150 萬</option>
+              <option value="over-150">150 萬以上</option>
+              <option value="undecided">未公告預算</option>
+            </select>
+            <select id="filter-location" class="filter-select" aria-label="篩選招標地區">
+              <option value="">📍 不限招標地區</option>
+              <option value="台北">台北</option>
+              <option value="新北">新北</option>
+              <option value="台中">台中</option>
+              <option value="高雄">高雄</option>
+              <option value="other">其他縣市</option>
+            </select>
+          </div>
+          <div class="sort-group">
+            <select id="sort-by" class="filter-select" aria-label="排序規則">
+              <option value="days-asc">🚨 截止急件優先</option>
+              <option value="budget-desc">💰 預算由高到低</option>
+              <option value="days-desc">📅 新公告優先</option>
+            </select>
+          </div>
+        </div>
+        
         <div class="tender-list" id="tender-list">
           <!-- Dynamically Rendered by app.js -->
         </div>

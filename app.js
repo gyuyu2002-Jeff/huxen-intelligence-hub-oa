@@ -130,6 +130,20 @@ const competitors = [
 // 3. State Management
 let savedTenders = JSON.parse(localStorage.getItem('savedTenders')) || [1, 3]; // Default saved ids
 let searchQuery = "";
+let filterBudget = "";
+let filterLocation = "";
+let sortBy = "days-asc"; // default sort by urgency
+
+// Helper to parse budget string to number for sorting and filtering
+function parseBudgetVal(budgetStr) {
+  if (!budgetStr || budgetStr.includes("未定")) return -1;
+  const match = budgetStr.match(/([\d\.]+)\s*萬/);
+  if (match) {
+    return parseFloat(match[1]) * 10000;
+  }
+  const cleanStr = budgetStr.replace(/[^\d]/g, '');
+  return cleanStr ? parseInt(cleanStr) : -1;
+}
 
 // 4. DOM Elements
 const tenderListEl = document.getElementById('tender-list');
@@ -140,6 +154,10 @@ const searchInputEl = document.getElementById('search-input');
 const refreshButtonEl = document.getElementById('refresh-button');
 const competitorGridEl = document.getElementById('competitor-grid');
 
+const filterBudgetEl = document.getElementById('filter-budget');
+const filterLocationEl = document.getElementById('filter-location');
+const sortByEl = document.getElementById('sort-by');
+
 // Modals
 const guideModalEl = document.getElementById('guide-modal');
 const detailModalEl = document.getElementById('detail-modal');
@@ -147,20 +165,64 @@ const btnGuideTriggerEl = document.getElementById('btn-guide-trigger');
 
 // 5. Render Functions
 function renderTenders() {
-  // Filter
-  const filtered = tenders.filter(t => {
+  // 1. Filter
+  let filtered = tenders.filter(t => {
+    // Search filter
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return true;
-    return (
-      t.title.toLowerCase().includes(q) ||
-      t.agency.toLowerCase().includes(q) ||
-      t.location.toLowerCase().includes(q)
-    );
+    if (q) {
+      const matchSearch = (
+        t.title.toLowerCase().includes(q) ||
+        t.agency.toLowerCase().includes(q) ||
+        t.location.toLowerCase().includes(q)
+      );
+      if (!matchSearch) return false;
+    }
+
+    // Budget filter
+    if (filterBudget) {
+      const budgetVal = parseBudgetVal(t.budget);
+      if (filterBudget === "under-50") {
+        if (budgetVal === -1 || budgetVal > 500000) return false;
+      } else if (filterBudget === "50-150") {
+        if (budgetVal < 500000 || budgetVal > 1500000) return false;
+      } else if (filterBudget === "over-150") {
+        if (budgetVal < 1500000) return false;
+      } else if (filterBudget === "undecided") {
+        if (budgetVal !== -1) return false;
+      }
+    }
+
+    // Location filter
+    if (filterLocation) {
+      if (filterLocation === "other") {
+        if (["台北", "新北", "台中", "高雄"].includes(t.location)) return false;
+      } else {
+        if (t.location !== filterLocation) return false;
+      }
+    }
+
+    return true;
   });
 
-  // Render HTML
+  // 2. Sort
+  if (sortBy === "days-asc") {
+    filtered.sort((a, b) => a.days - b.days);
+  } else if (sortBy === "budget-desc") {
+    filtered.sort((a, b) => {
+      const valA = parseBudgetVal(a.budget);
+      const valB = parseBudgetVal(b.budget);
+      // Keep -1 (undecided) budget at the bottom
+      if (valA === -1 && valB !== -1) return 1;
+      if (valB === -1 && valA !== -1) return -1;
+      return valB - valA;
+    });
+  } else if (sortBy === "days-desc") {
+    filtered.sort((a, b) => a.id - b.id); // original order is chronological
+  }
+
+  // 3. Render HTML
   if (filtered.length === 0) {
-    tenderListEl.innerHTML = `<div class="empty-state">沒有符合條件的事務機標案，請調整關鍵字。</div>`;
+    tenderListEl.innerHTML = `<div class="empty-state">沒有符合條件的事務機標案，請調整搜尋或篩選條件。</div>`;
   } else {
     tenderListEl.innerHTML = filtered.map(t => {
       const isSaved = savedTenders.includes(t.id);
@@ -313,9 +375,37 @@ searchInputEl.addEventListener('input', (e) => {
   renderTenders();
 });
 
+// Dropdown filter change listeners (ezbid style)
+if (filterBudgetEl) {
+  filterBudgetEl.addEventListener('change', (e) => {
+    filterBudget = e.target.value;
+    renderTenders();
+  });
+}
+if (filterLocationEl) {
+  filterLocationEl.addEventListener('change', (e) => {
+    filterLocation = e.target.value;
+    renderTenders();
+  });
+}
+if (sortByEl) {
+  sortByEl.addEventListener('change', (e) => {
+    sortBy = e.target.value;
+    renderTenders();
+  });
+}
+
 refreshButtonEl.addEventListener('click', () => {
   searchInputEl.value = "";
   searchQuery = "";
+  filterBudget = "";
+  filterLocation = "";
+  sortBy = "days-asc";
+  
+  if (filterBudgetEl) filterBudgetEl.value = "";
+  if (filterLocationEl) filterLocationEl.value = "";
+  if (sortByEl) sortByEl.value = "days-asc";
+  
   renderTenders();
   
   refreshButtonEl.textContent = "整理中...";
