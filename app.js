@@ -130,7 +130,6 @@ const competitors = [
 // 3. State Management
 let savedTenders = JSON.parse(localStorage.getItem('savedTenders')) || [1, 3]; // Default saved ids
 let searchQuery = "";
-let filterBudget = "";
 let filterLocation = "";
 let sortBy = "days-asc"; // default sort by urgency
 
@@ -154,7 +153,6 @@ const searchInputEl = document.getElementById('search-input');
 const refreshButtonEl = document.getElementById('refresh-button');
 const competitorGridEl = document.getElementById('competitor-grid');
 
-const filterBudgetEl = document.getElementById('filter-budget');
 const filterLocationEl = document.getElementById('filter-location');
 const sortByEl = document.getElementById('sort-by');
 
@@ -178,26 +176,10 @@ function renderTenders() {
       if (!matchSearch) return false;
     }
 
-    // Budget filter
-    if (filterBudget) {
-      const budgetVal = parseBudgetVal(t.budget);
-      if (filterBudget === "under-50") {
-        if (budgetVal === -1 || budgetVal > 500000) return false;
-      } else if (filterBudget === "50-150") {
-        if (budgetVal < 500000 || budgetVal > 1500000) return false;
-      } else if (filterBudget === "over-150") {
-        if (budgetVal < 1500000) return false;
-      } else if (filterBudget === "undecided") {
-        if (budgetVal !== -1) return false;
-      }
-    }
-
     // Location filter
     if (filterLocation) {
-      if (filterLocation === "other") {
-        if (["台北", "新北", "台中", "高雄"].includes(t.location)) return false;
-      } else {
-        if (t.location !== filterLocation) return false;
+      if (!t.location.toLowerCase().includes(filterLocation.toLowerCase())) {
+        return false;
       }
     }
 
@@ -376,12 +358,6 @@ searchInputEl.addEventListener('input', (e) => {
 });
 
 // Dropdown filter change listeners (ezbid style)
-if (filterBudgetEl) {
-  filterBudgetEl.addEventListener('change', (e) => {
-    filterBudget = e.target.value;
-    renderTenders();
-  });
-}
 if (filterLocationEl) {
   filterLocationEl.addEventListener('change', (e) => {
     filterLocation = e.target.value;
@@ -398,11 +374,9 @@ if (sortByEl) {
 refreshButtonEl.addEventListener('click', () => {
   searchInputEl.value = "";
   searchQuery = "";
-  filterBudget = "";
   filterLocation = "";
   sortBy = "days-asc";
   
-  if (filterBudgetEl) filterBudgetEl.value = "";
   if (filterLocationEl) filterLocationEl.value = "";
   if (sortByEl) sortByEl.value = "days-asc";
   
