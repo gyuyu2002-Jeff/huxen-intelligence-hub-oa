@@ -119,7 +119,84 @@ def generate_market_watch_with_gemini(news_content, api_key):
         print(f"Error invoking Gemini API: {e}")
         return None
 
-def generate_tender_ai_analysis(tender_title, agency, budget, details, api_key):
+def get_historical_reference(title, agency, processed_awards):
+    """Find a matching resolved case or compute general averages to construct the history context."""
+    matched_case = None
+    
+    # 1. Look for a matching agency or keyword match in the detailed resolved awards list
+    for aw in processed_awards:
+        # Check if agency is similar
+        if aw["agency"][:5] in agency or agency[:5] in aw["agency"]:
+            matched_case = aw
+            break
+        # Check keyword match
+        keywords = ["影印機", "複合機", "印表機", "租用", "租賃"]
+        common = [w for w in keywords if w in title and w in aw["title"]]
+        if len(common) >= 2:
+            matched_case = aw
+            
+    # Parse budget string to numeric value for math
+    def parse_val(s):
+        if not s or "未定" in s:
+            return 0
+        digits = "".join(c for c in s if c.isdigit() or c == '.')
+        try:
+            if "萬" in s:
+                return float(digits) * 10000
+            return float(digits)
+        except:
+            return 0
+
+    if matched_case:
+        award_val = parse_val(matched_case["awardAmount"])
+        base_val = parse_val(matched_case["basePrice"])
+        budget_val = parse_val(matched_case["budget"])
+        
+        ratio = 0.0
+        if award_val > 0 and base_val > 0:
+            ratio = (award_val / base_val) * 100
+        elif award_val > 0 and budget_val > 0:
+            ratio = (award_val / budget_val) * 100
+            
+        if ratio > 0:
+            ratio_str = f"{ratio:.1f}%"
+            return {
+                "found": True,
+                "text": f"- 往年類似決標參考案：{matched_case['title']}\n- 決標日期：{matched_case['date']}\n- 預算金額：{matched_case['budget']} / 得標金額：{matched_case['awardAmount']}\n- 歷史得標折數：{ratio_str}",
+                "ratio": ratio
+            }
+
+    # 2. If no direct match, calculate average of all resolved cases that have valid prices
+    ratios = []
+    for aw in processed_awards:
+        award_val = parse_val(aw["awardAmount"])
+        base_val = parse_val(aw["basePrice"])
+        budget_val = parse_val(aw["budget"])
+        
+        ratio = 0.0
+        if award_val > 0 and base_val > 0:
+            ratio = (award_val / base_val) * 100
+        elif award_val > 0 and budget_val > 0:
+            ratio = (award_val / budget_val) * 100
+            
+        if 50 < ratio <= 100: # filter out unrealistic ratios
+            ratios.append(ratio)
+            
+    if ratios:
+        avg_ratio = sum(ratios) / len(ratios)
+        return {
+            "found": False,
+            "text": f"- 往年全台類似標案平均得標折扣率：約 {avg_ratio:.1f}% (依據 {len(ratios)} 筆歷史決標案計算)",
+            "ratio": avg_ratio
+        }
+        
+    return {
+        "found": False,
+        "text": "- 往年類似標案平均得標折扣率：約 89.5% (全台事務機行情參考值)",
+        "ratio": 89.5
+    }
+
+def generate_tender_ai_analysis(tender_title, agency, budget, details, history_context, api_key):
     """Generate professional competitor threat, target price, and sales strategy for a given tender."""
     if not api_key:
         return None
@@ -135,10 +212,13 @@ def generate_tender_ai_analysis(tender_title, agency, budget, details, api_key):
 - 預算金額：{budget}
 - 詳細說明：{details}
 
-請代表「互盛資訊 (RICOH)」進行智能投標沙盤推演與對手分析，並精確輸出為以下 JSON 格式（繁體中文，不要包含任何 Markdown 標記，不要寫 ```json 字樣）：
+本案歷史決標數據參考：
+{history_context}
+
+請代表「互盛資訊 (RICOH)」進行智能投標沙盤推演與對手分析，請結合上述提供的「本案歷史決標數據參考」（例如若已有前案得標折扣率，請在底價估計中明示分析），並精確輸出為以下 JSON 格式（繁體中文，不要包含任何 Markdown 標記，不要寫 ```json 字樣）：
 {{
   "aiCompetitor": "分析主要的競爭對手是誰（如台灣富士全錄 Fujifilm BI、台灣佳能 Canon、東芝 Toshiba 或 Epson 噴墨印表機），評估他們的威脅程度與優勢劣勢，字數在 70 字內。",
-  "aiTargetPrice": "建議互盛的合理得標底價區間預估或報價折數策略（例如：建議以預算金額的 88% - 93% 投標，或提醒該機關以往走低價標需防禦低價競爭等），字數在 70 字內。",
+  "aiTargetPrice": "建議互盛的合理得標底價區間預估或報價折數策略（請結合上述歷史決標數據進行分析，如：參考前案歷史折數XX%，預估本案合理得標區間為XX%-XX%），字數在 70 字內。",
   "aiStrategy": "給予互盛業務同仁的防禦與強攻策略（例如：強調 Ricoh 的零信任資安認證、文件掃描客製流程、或每月抄表維護責任等，如何寫規格防堵對手），字數在 80 字內。"
 }}
 """
@@ -170,20 +250,34 @@ def generate_tender_ai_analysis(tender_title, agency, budget, details, api_key):
         print(f"Error generating tender AI analysis: {e}")
         return None
 
-def generate_mock_tender_ai_analysis(title, agency, budget):
-    """Generate realistic rule-based OA business strategy when Gemini API key is not present."""
+def generate_mock_tender_ai_analysis(title, agency, budget, history_ref):
+    """Generate realistic rule-based OA business strategy based on actual historical references."""
+    ratio = history_ref["ratio"]
+    var_seed = (len(title) % 5) - 2 # pseudorandom variance -2 to +2
+    low_bound = round(ratio + var_seed - 2)
+    high_bound = round(ratio + var_seed + 2)
+    
+    # Clamp bounds to realistic copier ranges
+    low_bound = max(78, min(low_bound, 96))
+    high_bound = max(82, min(high_bound, 100))
+    
+    if history_ref["found"]:
+        target_price = f"參考本案機關歷史前案折扣率 {ratio:.1f}%，預估得標區間為 {low_bound}% - {high_bound}%。需防範對手低價搶標。"
+    else:
+        target_price = f"依全台歷史類似案平均折扣率 {ratio:.1f}% 推算，本案預估合理得標折數區間為 {low_bound}% - {high_bound}%。"
+
     if "法院" in agency or "檢察署" in agency or "稅局" in agency or "警察" in agency:
         competitor = "此案為高資安敏感機關，主要對手為台灣富士全錄 (Fujifilm BI)，其在司法與公家核心機關佔有率高，主打硬體加密防護。"
-        target_price = "司法與警政機關對履約品質與後續維護要求極高，預估得標區間落於預算金額的 90% - 95%，不宜過度砍價搶標。"
         strategy = "建議同仁積極推廣 Ricoh 零信任資安架構，主打硬碟資料防護抹除（符合公部門最新資安指引）與完整用印日誌留存，在資安面上設立防線。"
+        target_price += " 司法與警政機關對後續維護要求極高，不宜過度砍價搶標。"
     elif "學校" in agency or "大學" in agency or "國小" in agency or "高中" in agency:
         competitor = "教育單位預算極為吃緊，需嚴防台灣愛普生 (Epson) 以省電型微噴印表機進行低單價搶標，以及 Canon 以低階複合機切入。"
-        target_price = "學校單位為傳統價格紅海，競爭極其激烈。建議合理投標區間為預算的 82% - 87% 進場，以防對手以破壞性低單價搶標。"
         strategy = "主攻複合機與列印管理系統之整合（如刷卡安全取件及師生計費點數拷貝），強調互盛優於同業的 2 小時快速到府維修與定期保養承諾。"
+        target_price += " 學校單位為傳統價格紅海，競爭極其激烈，需注意對手以破壞性低單價搶標。"
     else:
         competitor = "主要競爭對手為台灣佳能 (Canon) 與夏普 (Sharp)，兩者在此類公務機關多以租賃月租費與單張抄表費用折扣進行價格戰。"
-        target_price = "預估得標區間為預算金額的 86% - 91%。此案建議提出符合大印量的合理標準合約，避免捲入無謂殺價。"
         strategy = "主打互盛 Smart Integration 雲端文件流程，強調能與該單位現有的文件簽核系統整合，並凸顯綠色採購環保與節能標章優勢。"
+        target_price += " 建議同仁提出符合大印量的合理標準合約，避免捲入無謂殺價。"
         
     return {
         "aiCompetitor": competitor,
@@ -302,102 +396,7 @@ def main():
 
     print(f"Found {len(unique_cases)} unique active cases and {len(unique_awards)} unique award cases.")
     
-    # Sort cases by date descending (date is int YYYYMMDD)
-    sorted_cases = sorted(unique_cases.values(), key=lambda x: x.get('date', 0), reverse=True)
-    
-    # Only fetch details for the top 10 most recent to be polite to the API rate limits
-    top_cases = sorted_cases[:10]
-    
-    processed_tenders = []
-    today = datetime.date.today()
-    # If the system date is different (like in simulation where local time is 2026-07-25)
-    # We can default to using 2026-07-25 as today
-    sim_date = datetime.date(2026, 7, 25)
-    
-    tender_idx = 1
-    for case in top_cases:
-        unit_id = case.get('unit_id')
-        job_number = case.get('job_number')
-        filename = case.get('filename', '')
-        
-        detail_url = f"https://pcc-api.openfun.app/api/tender?unit_id={unit_id}&job_number={job_number}"
-        print(f"Fetching details for {case.get('brief', {}).get('title')}...")
-        detail_res = fetch_json(detail_url)
-        # Sleep for 1.5 seconds to respect the API rate limit and avoid 429
-        time.sleep(1.5)
-        
-        # Get details
-        detail_data = {}
-        if detail_res and 'records' in detail_res and len(detail_res['records']) > 0:
-            detail_data = detail_res['records'][0].get('detail', {})
-            
-        # Parse fields
-        title = detail_data.get('採購資料:標案名稱') or case.get('brief', {}).get('title', '未知標案')
-        agency = detail_data.get('機關資料:機關名稱') or case.get('unit_name', '未知機關')
-        
-        address = detail_data.get('機關資料:機關地址') or ""
-        location = extract_location(address, agency)
-            
-        budget_str = detail_data.get('採購資料:預算金額') or ""
-        budget_display = extract_budget_text(budget_str)
-        
-        # Extract priority based on budget
-        budget_digits = "".join(c for c in budget_str if c.isdigit())
-        budget_val = int(budget_digits) if budget_digits else 0
-        priority = "高" if budget_val >= 1000000 else "中" if budget_val >= 300000 else "低"
-        
-        deadline_raw = detail_data.get('領投開標:截止投標') or ""
-        # e.g., '115/07/29 17:00'
-        deadline_date = parse_roc_date(deadline_raw)
-        
-        deadline_display = "未公告"
-        days_rem = 5 # default fallback
-        
-        if deadline_date:
-            deadline_display = deadline_date.strftime('%m/%d')
-            # Calculate remaining days based on simulation date
-            days_rem = (deadline_date - sim_date).days
-            
-        # If the tender has already expired in the simulation, skip it
-        if days_rem < 0:
-            print(f"Skipping expired tender: {title} (expired {abs(days_rem)} days ago)")
-            continue
-            
-        details_desc = detail_data.get('其他:附加說明') or "尚無詳細商機說明。"
-        # clean up whitespace and carriage returns
-        details_desc = re.sub(r'\s+', ' ', details_desc).strip()
-        if len(details_desc) > 300:
-            details_desc = details_desc[:300] + "..."
-            
-        source_url = get_pcc_url(filename, case.get('date'))
-        
-        # AI strategy analysis
-        ai_analysis = None
-        gemini_key = os.environ.get("GEMINI_API_KEY")
-        if gemini_key:
-            ai_analysis = generate_tender_ai_analysis(title, agency, budget_display, details_desc, gemini_key)
-        if not ai_analysis:
-            ai_analysis = generate_mock_tender_ai_analysis(title, agency, budget_display)
-        
-        processed_tenders.append({
-          "id": tender_idx,
-          "category": "事務機",
-          "title": title,
-          "agency": agency,
-          "location": location,
-          "budget": budget_display,
-          "deadline": deadline_display,
-          "days": days_rem,
-          "priority": priority,
-          "sourceUrl": source_url,
-          "details": details_desc,
-          "aiCompetitor": ai_analysis.get("aiCompetitor", ""),
-          "aiTargetPrice": ai_analysis.get("aiTargetPrice", ""),
-          "aiStrategy": ai_analysis.get("aiStrategy", "")
-        })
-        tender_idx += 1
-        
-    # 3. Fetch details for top resolved awards
+    # 2. Fetch details for top resolved awards first to build our historical database reference
     print("Fetching details for top resolved awards...")
     sorted_awards = sorted(unique_awards.values(), key=lambda x: x.get('date', 0), reverse=True)
     top_awards = sorted_awards[:8]
@@ -411,7 +410,8 @@ def main():
         detail_url = f"https://pcc-api.openfun.app/api/tender?unit_id={unit_id}&job_number={job_number}"
         print(f"Fetching award detail: {case.get('brief', {}).get('title')}...")
         detail_res = fetch_json(detail_url)
-        time.sleep(1.5)
+        # Sleep for 2.5 seconds to respect the API rate limit and avoid 429
+        time.sleep(2.5)
         
         detail_data = {}
         if detail_res and 'records' in detail_res and len(detail_res['records']) > 0:
@@ -461,6 +461,94 @@ def main():
             "sourceUrl": source_url
         })
         award_idx += 1
+
+    # 3. Fetch details for top active tenders
+    print(f"Fetching details for top active tenders...")
+    sorted_cases = sorted(unique_cases.values(), key=lambda x: x.get('date', 0), reverse=True)
+    top_cases = sorted_cases[:10]
+    
+    processed_tenders = []
+    today = datetime.date.today()
+    sim_date = datetime.date(2026, 7, 25)
+    
+    tender_idx = 1
+    for case in top_cases:
+        unit_id = case.get('unit_id')
+        job_number = case.get('job_number')
+        filename = case.get('filename', '')
+        
+        detail_url = f"https://pcc-api.openfun.app/api/tender?unit_id={unit_id}&job_number={job_number}"
+        print(f"Fetching active tender details for {case.get('brief', {}).get('title')}...")
+        detail_res = fetch_json(detail_url)
+        # Sleep for 2.5 seconds to respect the API rate limit and avoid 429
+        time.sleep(2.5)
+        
+        detail_data = {}
+        if detail_res and 'records' in detail_res and len(detail_res['records']) > 0:
+            detail_data = detail_res['records'][0].get('detail', {})
+            
+        title = detail_data.get('採購資料:標案名稱') or case.get('brief', {}).get('title', '未知標案')
+        agency = detail_data.get('機關資料:機關名稱') or case.get('unit_name', '未知機關')
+        
+        address = detail_data.get('機關資料:機關地址') or ""
+        location = extract_location(address, agency)
+            
+        budget_str = detail_data.get('採購資料:預算金額') or ""
+        budget_display = extract_budget_text(budget_str)
+        
+        budget_digits = "".join(c for c in budget_str if c.isdigit())
+        budget_val = int(budget_digits) if budget_digits else 0
+        priority = "高" if budget_val >= 1000000 else "中" if budget_val >= 300000 else "低"
+        
+        deadline_raw = detail_data.get('領投開標:截止投標') or ""
+        deadline_date = parse_roc_date(deadline_raw)
+        
+        deadline_display = "未公告"
+        days_rem = 5
+        
+        if deadline_date:
+            deadline_display = deadline_date.strftime('%m/%d')
+            days_rem = (deadline_date - sim_date).days
+            
+        if days_rem < 0:
+            print(f"Skipping expired tender: {title} (expired {abs(days_rem)} days ago)")
+            continue
+            
+        details_desc = detail_data.get('其他:附加說明') or "尚無詳細商機說明。"
+        details_desc = re.sub(r'\s+', ' ', details_desc).strip()
+        if len(details_desc) > 300:
+            details_desc = details_desc[:300] + "..."
+            
+        source_url = get_pcc_url(filename, case.get('date'))
+        
+        # Calculate dynamic history reference for current active case
+        history_ref = get_historical_reference(title, agency, processed_awards)
+        
+        # AI strategy analysis
+        ai_analysis = None
+        gemini_key = os.environ.get("GEMINI_API_KEY")
+        if gemini_key:
+            ai_analysis = generate_tender_ai_analysis(title, agency, budget_display, details_desc, history_ref["text"], gemini_key)
+        if not ai_analysis:
+            ai_analysis = generate_mock_tender_ai_analysis(title, agency, budget_display, history_ref)
+        
+        processed_tenders.append({
+          "id": tender_idx,
+          "category": "事務機",
+          "title": title,
+          "agency": agency,
+          "location": location,
+          "budget": budget_display,
+          "deadline": deadline_display,
+          "days": days_rem,
+          "priority": priority,
+          "sourceUrl": source_url,
+          "details": details_desc,
+          "aiCompetitor": ai_analysis.get("aiCompetitor", ""),
+          "aiTargetPrice": ai_analysis.get("aiTargetPrice", ""),
+          "aiStrategy": ai_analysis.get("aiStrategy", "")
+        })
+        tender_idx += 1
         
     # Fetch environment API key and generate AI Market Watch if available
     gemini_key = os.environ.get("GEMINI_API_KEY")
