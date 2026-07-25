@@ -133,7 +133,12 @@
           <div class="panel-title">
             <p class="kicker">OPPORTUNITY RADAR</p>
             <h2>公家標案雷達</h2>
-            <span class="subtitle">依截止日與商機適配度排序</span>
+            <span class="subtitle" id="radar-subtitle">依截止日與商機適配度排序</span>
+          </div>
+          <!-- Tab Switcher (ezbid/acebidx style) -->
+          <div class="radar-tabs">
+            <button class="tab-btn active" id="tab-active-tenders" aria-label="切換至招標中案件">🟢 招標中案件</button>
+            <button class="tab-btn" id="tab-award-tenders" aria-label="切換至歷史決標行情">🏆 歷史決標行情</button>
           </div>
           <div class="panel-count">
             <b class="count-num" id="result-count-num">0</b>
@@ -354,7 +359,54 @@
             </tbody>
           </table>
         </div>
-        <div class="guide-sec">
+        
+        <!-- AI Analytics Block (Acebidx style) -->
+        <div class="guide-sec ai-playbook-sec" id="detail-ai-block" style="margin-top: 16px;">
+          <h4 style="color: var(--blue); display: flex; align-items: center; gap: 6px; font-weight: 800;">
+            ✨ AI 投標智能沙盤推演 (Acebidx級)
+          </h4>
+          <div class="ai-playbook-card" style="margin-top: 10px; background: var(--blue-soft); border-left: 4px solid var(--blue); padding: 14px; border-radius: 8px;">
+            <div style="margin-bottom: 10px;">
+              <strong style="color: var(--blue-deep); font-size: 13px; display: block; margin-bottom: 4px;">👥 潛在競品與威脅度分析</strong>
+              <p id="detail-ai-competitor" style="font-size: 12px; color: var(--ink); margin: 0; line-height: 1.5;"></p>
+            </div>
+            <div style="margin-bottom: 10px;">
+              <strong style="color: var(--blue-deep); font-size: 13px; display: block; margin-bottom: 4px;">🎯 報價與得標底價估計</strong>
+              <p id="detail-ai-target-price" style="font-size: 12px; color: var(--ink); margin: 0; line-height: 1.5;"></p>
+            </div>
+            <div>
+              <strong style="color: var(--blue-deep); font-size: 13px; display: block; margin-bottom: 4px;">🛡️ 互盛 (Ricoh) 業務攻防策略</strong>
+              <p id="detail-ai-strategy" style="font-size: 12px; color: var(--ink); margin: 0; line-height: 1.5;"></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Award Detail Block (Historical resolved data) -->
+        <div class="guide-sec" id="detail-award-block" style="margin-top: 16px;">
+          <h4 style="font-weight: 800;">🏆 決標結果與歷史行情</h4>
+          <table class="guide-table" style="margin-top: 8px;">
+            <tbody>
+              <tr>
+                <th style="width: 30%">底價金額</th>
+                <td id="detail-award-base">--</td>
+              </tr>
+              <tr>
+                <th>決標金額</th>
+                <td id="detail-award-amount" style="color: var(--green); font-weight: 700;">--</td>
+              </tr>
+              <tr>
+                <th>得標折扣率</th>
+                <td id="detail-award-ratio" style="font-weight: 700;">--</td>
+              </tr>
+              <tr>
+                <th>決標日期</th>
+                <td id="detail-award-date">--</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        
+        <div class="guide-sec" id="detail-desc-sec">
           <h4>📋 詳細說明與商機分析</h4>
           <div id="detail-desc" style="margin-top: 8px;">--</div>
         </div>

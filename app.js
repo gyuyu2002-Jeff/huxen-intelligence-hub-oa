@@ -132,6 +132,7 @@ let savedTenders = JSON.parse(localStorage.getItem('savedTenders')) || [1, 3]; /
 let searchQuery = "";
 let filterLocation = "";
 let sortBy = "days-asc"; // default sort by urgency
+let activeTab = "active"; // "active" or "award"
 
 // Helper to parse budget string to number for sorting and filtering
 function parseBudgetVal(budgetStr) {
@@ -155,6 +156,9 @@ const competitorGridEl = document.getElementById('competitor-grid');
 
 const filterLocationEl = document.getElementById('filter-location');
 const sortByEl = document.getElementById('sort-by');
+const tabActiveEl = document.getElementById('tab-active-tenders');
+const tabAwardEl = document.getElementById('tab-award-tenders');
+const radarSubtitleEl = document.getElementById('radar-subtitle');
 
 // Modals
 const guideModalEl = document.getElementById('guide-modal');
@@ -163,8 +167,10 @@ const btnGuideTriggerEl = document.getElementById('btn-guide-trigger');
 
 // 5. Render Functions
 function renderTenders() {
+  const currentSource = activeTab === "active" ? tenders : (window.tendersAwardData || []);
+  
   // 1. Filter
-  let filtered = tenders.filter(t => {
+  let filtered = currentSource.filter(t => {
     // Search filter
     const q = searchQuery.trim().toLowerCase();
     if (q) {
@@ -187,48 +193,86 @@ function renderTenders() {
   });
 
   // 2. Sort
-  if (sortBy === "days-asc") {
-    filtered.sort((a, b) => a.days - b.days);
-  } else if (sortBy === "budget-desc") {
-    filtered.sort((a, b) => {
-      const valA = parseBudgetVal(a.budget);
-      const valB = parseBudgetVal(b.budget);
-      // Keep -1 (undecided) budget at the bottom
-      if (valA === -1 && valB !== -1) return 1;
-      if (valB === -1 && valA !== -1) return -1;
-      return valB - valA;
-    });
-  } else if (sortBy === "days-desc") {
-    filtered.sort((a, b) => a.id - b.id); // original order is chronological
+  if (activeTab === "active") {
+    if (sortBy === "days-asc") {
+      filtered.sort((a, b) => a.days - b.days);
+    } else if (sortBy === "budget-desc") {
+      filtered.sort((a, b) => {
+        const valA = parseBudgetVal(a.budget);
+        const valB = parseBudgetVal(b.budget);
+        if (valA === -1 && valB !== -1) return 1;
+        if (valB === -1 && valA !== -1) return -1;
+        return valB - valA;
+      });
+    } else if (sortBy === "days-desc") {
+      filtered.sort((a, b) => a.id - b.id);
+    }
+  } else {
+    // Award tab sorting
+    if (sortBy === "budget-desc") {
+      filtered.sort((a, b) => {
+        const valA = parseBudgetVal(a.awardAmount);
+        const valB = parseBudgetVal(b.awardAmount);
+        if (valA === -1 && valB !== -1) return 1;
+        if (valB === -1 && valA !== -1) return -1;
+        return valB - valA;
+      });
+    } else {
+      // Default to resolution date (newest first, which is original array index order)
+      filtered.sort((a, b) => a.id - b.id);
+    }
   }
 
   // 3. Render HTML
   if (filtered.length === 0) {
-    tenderListEl.innerHTML = `<div class="empty-state">沒有符合條件的事務機標案，請調整搜尋或篩選條件。</div>`;
+    tenderListEl.innerHTML = `<div class="empty-state">沒有符合條件的項目，請調整搜尋或篩選條件。</div>`;
   } else {
     tenderListEl.innerHTML = filtered.map(t => {
-      const isSaved = savedTenders.includes(t.id);
-      return `
-        <article class="tender-row" data-id="${t.id}">
-          <div class="tender-icon">OA</div>
-          <div class="tender-main">
-            <div class="tender-head">
-              <span class="tender-priority ${t.priority === '高' ? 'high' : 'mid'}">${t.priority}優先</span>
-              <h3 class="tender-click-title" style="cursor:pointer;" onclick="openTenderDetail(${t.id})">${t.title}</h3>
+      if (activeTab === "active") {
+        const isSaved = savedTenders.includes(t.id);
+        return `
+          <article class="tender-row" data-id="${t.id}">
+            <div class="tender-icon">OA</div>
+            <div class="tender-main">
+              <div class="tender-head">
+                <span class="tender-priority ${t.priority === '高' ? 'high' : 'mid'}">${t.priority}優先</span>
+                <h3 class="tender-click-title" style="cursor:pointer;" onclick="openTenderDetail(${t.id}, 'active')">${t.title}</h3>
+              </div>
+              <p class="tender-agency">${t.agency}<span>·</span>${t.location}</p>
+              <div class="tender-meta">
+                <span>預算 <b>${t.budget}</b></span>
+                <span>截止 <b>${t.deadline}</b></span>
+                <span class="${t.days <= 10 ? 'urgent' : ''}">剩 ${t.days} 天</span>
+                <a href="${t.sourceUrl}" target="_blank" rel="noreferrer" class="tender-link">開啟案件 ↗</a>
+              </div>
             </div>
-            <p class="tender-agency">${t.agency}<span>·</span>${t.location}</p>
-            <div class="tender-meta">
-              <span>預算 <b>${t.budget}</b></span>
-              <span>截止 <b>${t.deadline}</b></span>
-              <span class="${t.days <= 10 ? 'urgent' : ''}">剩 ${t.days} 天</span>
-              <a href="${t.sourceUrl}" target="_blank" rel="noreferrer" class="tender-link">開啟案件 ↗</a>
+            <button class="btn-save ${isSaved ? 'saved' : ''}" onclick="toggleSave(${t.id}, event)" aria-label="${isSaved ? '取消收藏' : '收藏'}">
+              ${isSaved ? '★' : '☆'}
+            </button>
+          </article>
+        `;
+      } else {
+        // Award tab layout
+        return `
+          <article class="tender-row award-row" data-id="${t.id}">
+            <div class="tender-icon" style="background: var(--green-soft); color: var(--green); border-color: var(--green);">🏆</div>
+            <div class="tender-main">
+              <div class="tender-head">
+                <span class="tender-priority" style="background: var(--green-soft); color: var(--green);">已決標</span>
+                <h3 class="tender-click-title" style="cursor:pointer;" onclick="openTenderDetail(${t.id}, 'award')">${t.title}</h3>
+              </div>
+              <p class="tender-agency">${t.agency}<span>·</span>${t.location}</p>
+              <div class="tender-meta">
+                <span>預算 <b>${t.budget}</b></span>
+                <span style="color: var(--green);">決標 <b>${t.awardAmount}</b></span>
+                <span>底價 <b>${t.basePrice}</b></span>
+                <span>決標日 <b>${t.date}</b></span>
+                <a href="${t.sourceUrl}" target="_blank" rel="noreferrer" class="tender-link" style="color: var(--green); border-color: var(--green-soft);">決標公告 ↗</a>
+              </div>
             </div>
-          </div>
-          <button class="btn-save ${isSaved ? 'saved' : ''}" onclick="toggleSave(${t.id}, event)" aria-label="${isSaved ? '取消收藏' : '收藏'}">
-            ${isSaved ? '★' : '☆'}
-          </button>
-        </article>
-      `;
+          </article>
+        `;
+      }
     }).join('');
   }
 
@@ -320,22 +364,69 @@ window.copyTalkText = function(brand, text, btnElement) {
   }
 };
 
-window.openTenderDetail = function(id) {
-  const tender = tenders.find(t => t.id === id);
+window.openTenderDetail = function(id, type = 'active') {
+  const dataSource = type === 'active' ? tenders : (window.tendersAwardData || []);
+  const tender = dataSource.find(t => t.id === id);
   if (!tender) return;
 
   document.getElementById('detail-title').textContent = tender.title;
   document.getElementById('detail-agency-loc').innerHTML = `${tender.agency} <span>·</span> ${tender.location}`;
-  document.getElementById('detail-budget').textContent = tender.budget;
-  document.getElementById('detail-deadline').textContent = tender.deadline;
-  document.getElementById('detail-days').textContent = `剩 ${tender.days} 天`;
-  if (tender.days <= 10) {
-    document.getElementById('detail-days').classList.add('urgent');
+  
+  const aiBlock = document.getElementById('detail-ai-block');
+  const awardBlock = document.getElementById('detail-award-block');
+  const activeBudgetTable = document.querySelector('#detail-modal .guide-table');
+  
+  if (type === 'active') {
+    if (aiBlock) aiBlock.style.display = 'block';
+    if (awardBlock) awardBlock.style.display = 'none';
+    if (activeBudgetTable) activeBudgetTable.style.display = 'table';
+    
+    document.getElementById('detail-budget').textContent = tender.budget;
+    document.getElementById('detail-deadline').textContent = tender.deadline;
+    document.getElementById('detail-days').textContent = `剩 ${tender.days} 天`;
+    if (tender.days <= 10) {
+      document.getElementById('detail-days').classList.add('urgent');
+    } else {
+      document.getElementById('detail-days').classList.remove('urgent');
+    }
+    
+    document.getElementById('detail-ai-competitor').textContent = tender.aiCompetitor || "暫無對手威脅評估。";
+    document.getElementById('detail-ai-target-price').textContent = tender.aiTargetPrice || "暫無得標底價估計。";
+    document.getElementById('detail-ai-strategy').textContent = tender.aiStrategy || "暫無互盛業務強攻防禦策略。";
+    
+    document.getElementById('detail-desc-sec').style.display = 'block';
+    document.getElementById('detail-desc').innerHTML = `<p>${tender.details}</p>`;
+    document.getElementById('detail-link-btn').innerHTML = "前往政府電子採購網招標公告 ↗";
+    document.getElementById('detail-link-btn').style.color = "";
+    document.getElementById('detail-link-btn').style.borderColor = "";
   } else {
-    document.getElementById('detail-days').classList.remove('urgent');
+    if (aiBlock) aiBlock.style.display = 'none';
+    if (awardBlock) awardBlock.style.display = 'block';
+    if (activeBudgetTable) activeBudgetTable.style.display = 'none';
+    
+    document.getElementById('detail-award-base').textContent = tender.basePrice || "未公告底價";
+    document.getElementById('detail-award-amount').textContent = tender.awardAmount || "未定";
+    document.getElementById('detail-award-date').textContent = tender.date || "未知";
+    
+    // Calculate ratio
+    let ratioText = "無法計算 (預算或底價未公開)";
+    const awardVal = parseBudgetVal(tender.awardAmount);
+    const baseVal = parseBudgetVal(tender.basePrice);
+    const budgetVal = parseBudgetVal(tender.budget);
+    
+    if (awardVal > 0 && baseVal > 0) {
+      ratioText = ((awardVal / baseVal) * 100).toFixed(1) + "% (決標價 / 底價)";
+    } else if (awardVal > 0 && budgetVal > 0) {
+      ratioText = ((awardVal / budgetVal) * 100).toFixed(1) + "% (決標價 / 預算比)";
+    }
+    document.getElementById('detail-award-ratio').textContent = ratioText;
+    
+    document.getElementById('detail-desc-sec').style.display = 'none';
+    document.getElementById('detail-link-btn').innerHTML = "前往政府電子採購網決標公告 ↗";
+    document.getElementById('detail-link-btn').style.color = "var(--green)";
+    document.getElementById('detail-link-btn').style.borderColor = "var(--green-soft)";
   }
   
-  document.getElementById('detail-desc').innerHTML = `<p>${tender.details}</p>`;
   document.getElementById('detail-link-btn').setAttribute('href', tender.sourceUrl);
   
   openModal(detailModalEl);
@@ -371,14 +462,41 @@ if (sortByEl) {
   });
 }
 
+// Tab Click Event Listeners
+if (tabActiveEl && tabAwardEl) {
+  tabActiveEl.addEventListener('click', () => {
+    activeTab = "active";
+    tabActiveEl.classList.add('active');
+    tabAwardEl.classList.remove('active');
+    if (radarSubtitleEl) radarSubtitleEl.textContent = "依截止日與商機適配度排序";
+    sortBy = "days-asc";
+    if (sortByEl) sortByEl.value = "days-asc";
+    renderTenders();
+  });
+  
+  tabAwardEl.addEventListener('click', () => {
+    activeTab = "award";
+    tabActiveEl.classList.remove('active');
+    tabAwardEl.classList.add('active');
+    if (radarSubtitleEl) radarSubtitleEl.textContent = "依決標公告日期排序";
+    sortBy = "days-desc";
+    if (sortByEl) sortByEl.value = "days-desc";
+    renderTenders();
+  });
+}
+
 refreshButtonEl.addEventListener('click', () => {
   searchInputEl.value = "";
   searchQuery = "";
   filterLocation = "";
   sortBy = "days-asc";
+  activeTab = "active";
   
   if (filterLocationEl) filterLocationEl.value = "";
   if (sortByEl) sortByEl.value = "days-asc";
+  if (tabActiveEl) tabActiveEl.classList.add('active');
+  if (tabAwardEl) tabAwardEl.classList.remove('active');
+  if (radarSubtitleEl) radarSubtitleEl.textContent = "依截止日與商機適配度排序";
   
   renderTenders();
   

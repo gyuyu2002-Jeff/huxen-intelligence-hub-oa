@@ -119,6 +119,78 @@ def generate_market_watch_with_gemini(news_content, api_key):
         print(f"Error invoking Gemini API: {e}")
         return None
 
+def generate_tender_ai_analysis(tender_title, agency, budget, details, api_key):
+    """Generate professional competitor threat, target price, and sales strategy for a given tender."""
+    if not api_key:
+        return None
+    
+    print(f"Calling Gemini API to analyze sales strategy for: {tender_title}...")
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+    
+    prompt = f"""
+你是一位高階的台灣公家機關辦公設備 (OA, 影印機, 複合機, MFP) 投標決策與競爭策略分析專家。
+現有一筆台灣政府機關的複合機/影印機租賃與採購招標案，資料如下：
+- 招標機關：{agency}
+- 標案名稱：{tender_title}
+- 預算金額：{budget}
+- 詳細說明：{details}
+
+請代表「互盛資訊 (RICOH)」進行智能投標沙盤推演與對手分析，並精確輸出為以下 JSON 格式（繁體中文，不要包含任何 Markdown 標記，不要寫 ```json 字樣）：
+{{
+  "aiCompetitor": "分析主要的競爭對手是誰（如台灣富士全錄 Fujifilm BI、台灣佳能 Canon、東芝 Toshiba 或 Epson 噴墨印表機），評估他們的威脅程度與優勢劣勢，字數在 70 字內。",
+  "aiTargetPrice": "建議互盛的合理得標底價區間預估或報價折數策略（例如：建議以預算金額的 88% - 93% 投標，或提醒該機關以往走低價標需防禦低價競爭等），字數在 70 字內。",
+  "aiStrategy": "給予互盛業務同仁的防禦與強攻策略（例如：強調 Ricoh 的零信任資安認證、文件掃描客製流程、或每月抄表維護責任等，如何寫規格防堵對手），字數在 80 字內。"
+}}
+"""
+    body = {
+        "contents": [{
+            "parts": [{"text": prompt}]
+        }],
+        "generationConfig": {
+            "responseMimeType": "application/json"
+        }
+    }
+    
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(body).encode('utf-8'),
+        headers={'Content-Type': 'application/json'}
+    )
+    
+    try:
+        with urllib.request.urlopen(req, timeout=15) as response:
+            res_data = json.loads(response.read().decode('utf-8'))
+            text_response = res_data['candidates'][0]['content']['parts'][0]['text']
+            text_response = text_response.strip()
+            if text_response.startswith("```"):
+                text_response = re.sub(r'^```[a-zA-Z]*\n', '', text_response)
+                text_response = re.sub(r'\n```$', '', text_response)
+            return json.loads(text_response.strip())
+    except Exception as e:
+        print(f"Error generating tender AI analysis: {e}")
+        return None
+
+def generate_mock_tender_ai_analysis(title, agency, budget):
+    """Generate realistic rule-based OA business strategy when Gemini API key is not present."""
+    if "法院" in agency or "檢察署" in agency or "稅局" in agency or "警察" in agency:
+        competitor = "此案為高資安敏感機關，主要對手為台灣富士全錄 (Fujifilm BI)，其在司法與公家核心機關佔有率高，主打硬體加密防護。"
+        target_price = "司法與警政機關對履約品質與後續維護要求極高，預估得標區間落於預算金額的 90% - 95%，不宜過度砍價搶標。"
+        strategy = "建議同仁積極推廣 Ricoh 零信任資安架構，主打硬碟資料防護抹除（符合公部門最新資安指引）與完整用印日誌留存，在資安面上設立防線。"
+    elif "學校" in agency or "大學" in agency or "國小" in agency or "高中" in agency:
+        competitor = "教育單位預算極為吃緊，需嚴防台灣愛普生 (Epson) 以省電型微噴印表機進行低單價搶標，以及 Canon 以低階複合機切入。"
+        target_price = "學校單位為傳統價格紅海，競爭極其激烈。建議合理投標區間為預算的 82% - 87% 進場，以防對手以破壞性低單價搶標。"
+        strategy = "主攻複合機與列印管理系統之整合（如刷卡安全取件及師生計費點數拷貝），強調互盛優於同業的 2 小時快速到府維修與定期保養承諾。"
+    else:
+        competitor = "主要競爭對手為台灣佳能 (Canon) 與夏普 (Sharp)，兩者在此類公務機關多以租賃月租費與單張抄表費用折扣進行價格戰。"
+        target_price = "預估得標區間為預算金額的 86% - 91%。此案建議提出符合大印量的合理標準合約，避免捲入無謂殺價。"
+        strategy = "主打互盛 Smart Integration 雲端文件流程，強調能與該單位現有的文件簽核系統整合，並凸顯綠色採購環保與節能標章優勢。"
+        
+    return {
+        "aiCompetitor": competitor,
+        "aiTargetPrice": target_price,
+        "aiStrategy": strategy
+    }
+
 def get_pcc_url(filename):
     """Generate the official government procurement URL using base64 encoding of numerical digits from the filename."""
     digits = "".join(c for c in filename if c.isdigit())
@@ -196,6 +268,7 @@ def fetch_json(url):
 def main():
     print("Starting Huxen OA Tender Scraper...")
     unique_cases = {}
+    unique_awards = {}
     
     # 1. Fetch recent search results for each keyword
     for kw in KEYWORDS:
@@ -215,8 +288,11 @@ def main():
             # Identify unique key
             key = f"{unit_id}_{job_number}"
             
-            # Exclude resolved/annulled/awarded tenders
+            # Check resolved/awarded tenders
             if any(exclude in b_type for exclude in ["決標", "廢標", "無法決標", "撤銷"]):
+                if any(aw in b_type for aw in ["決標公告", "更正決標公告", "決標"]):
+                    if key not in unique_awards:
+                        unique_awards[key] = record
                 continue
             
             # Exclude known irrelevant keywords
@@ -226,7 +302,7 @@ def main():
             if key not in unique_cases:
                 unique_cases[key] = record
 
-    print(f"Found {len(unique_cases)} unique active cases. Fetching details for the top 10 most recent...")
+    print(f"Found {len(unique_cases)} unique active cases and {len(unique_awards)} unique award cases.")
     
     # Sort cases by date descending (date is int YYYYMMDD)
     sorted_cases = sorted(unique_cases.values(), key=lambda x: x.get('date', 0), reverse=True)
@@ -297,6 +373,14 @@ def main():
             
         source_url = get_pcc_url(filename)
         
+        # AI strategy analysis
+        ai_analysis = None
+        gemini_key = os.environ.get("GEMINI_API_KEY")
+        if gemini_key:
+            ai_analysis = generate_tender_ai_analysis(title, agency, budget_display, details_desc, gemini_key)
+        if not ai_analysis:
+            ai_analysis = generate_mock_tender_ai_analysis(title, agency, budget_display)
+        
         processed_tenders.append({
           "id": tender_idx,
           "category": "事務機",
@@ -308,9 +392,77 @@ def main():
           "days": days_rem,
           "priority": priority,
           "sourceUrl": source_url,
-          "details": details_desc
+          "details": details_desc,
+          "aiCompetitor": ai_analysis.get("aiCompetitor", ""),
+          "aiTargetPrice": ai_analysis.get("aiTargetPrice", ""),
+          "aiStrategy": ai_analysis.get("aiStrategy", "")
         })
         tender_idx += 1
+        
+    # 3. Fetch details for top resolved awards
+    print("Fetching details for top resolved awards...")
+    sorted_awards = sorted(unique_awards.values(), key=lambda x: x.get('date', 0), reverse=True)
+    top_awards = sorted_awards[:8]
+    processed_awards = []
+    award_idx = 1
+    for case in top_awards:
+        unit_id = case.get('unit_id')
+        job_number = case.get('job_number')
+        filename = case.get('filename', '')
+        
+        detail_url = f"https://pcc-api.openfun.app/api/tender?unit_id={unit_id}&job_number={job_number}"
+        print(f"Fetching award detail: {case.get('brief', {}).get('title')}...")
+        detail_res = fetch_json(detail_url)
+        time.sleep(1.5)
+        
+        detail_data = {}
+        if detail_res and 'records' in detail_res and len(detail_res['records']) > 0:
+            for r in detail_res['records']:
+                if '決標' in r.get('brief', {}).get('type', ''):
+                    detail_data = r.get('detail', {})
+                    break
+            if not detail_data:
+                detail_data = detail_res['records'][0].get('detail', {})
+                
+        title = detail_data.get('已公告資料:標案名稱') or detail_data.get('採購資料:標案名稱') or case.get('brief', {}).get('title', '未知標案')
+        agency = detail_data.get('機關資料:機關名稱') or case.get('unit_name', '未知機關')
+        address = detail_data.get('機關資料:機關地址') or ""
+        location = extract_location(address, agency)
+        
+        budget_str = detail_data.get('已公告資料:預算金額') or detail_data.get('採購資料:預算金額') or ""
+        budget_display = extract_budget_text(budget_str)
+        
+        award_str = detail_data.get('決標資料:總決標金額') or ""
+        award_display = extract_budget_text(award_str)
+        
+        base_str = detail_data.get('決標資料:底價金額') or ""
+        base_display = extract_budget_text(base_str)
+        
+        raw_date = detail_data.get('決標資料:決標日期') or ""
+        if raw_date:
+            date_display = raw_date
+        else:
+            date_int = case.get('date', 0)
+            if date_int:
+                date_str = str(date_int)
+                date_display = f"{int(date_str[:4])-1911}/{date_str[4:6]}/{date_str[6:]}"
+            else:
+                date_display = "未知"
+                
+        source_url = get_pcc_url(filename)
+        
+        processed_awards.append({
+            "id": award_idx,
+            "title": title,
+            "agency": agency,
+            "location": location,
+            "budget": budget_display,
+            "awardAmount": award_display,
+            "basePrice": base_display,
+            "date": date_display,
+            "sourceUrl": source_url
+        })
+        award_idx += 1
         
     # Fetch environment API key and generate AI Market Watch if available
     gemini_key = os.environ.get("GEMINI_API_KEY")
@@ -331,11 +483,15 @@ def main():
             json.dump(market_watch_cards, out_f, indent=2, ensure_ascii=False)
             out_f.write(";\n")
             
+        out_f.write("window.tendersAwardData = ")
+        json.dump(processed_awards, out_f, indent=2, ensure_ascii=False)
+        out_f.write(";\n")
+        
         out_f.write("window.tendersData = ")
         json.dump(processed_tenders, out_f, indent=2, ensure_ascii=False)
         out_f.write(";\n")
         
-    print(f"Successfully scraped and saved {len(processed_tenders)} active OA tenders to {OUTPUT_FILE}!")
+    print(f"Successfully scraped and saved {len(processed_tenders)} active and {len(processed_awards)} award OA tenders to {OUTPUT_FILE}!")
 
 if __name__ == "__main__":
     main()

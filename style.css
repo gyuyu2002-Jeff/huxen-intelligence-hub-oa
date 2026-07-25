@@ -1436,3 +1436,54 @@ footer {
   }
 }
 
+/* Tab Switcher Styling */
+.radar-tabs {
+  display: flex;
+  background: var(--blue-soft);
+  padding: 4px;
+  border-radius: 10px;
+  gap: 4px;
+  align-items: center;
+}
+
+.tab-btn {
+  padding: 6px 14px;
+  font-size: 11px;
+  font-weight: 800;
+  border: none;
+  background: none;
+  color: var(--muted);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: var(--transition);
+  font-family: var(--font-sans);
+}
+
+.tab-btn:hover {
+  color: var(--blue);
+}
+
+.tab-btn.active {
+  background: #ffffff;
+  color: var(--blue);
+  box-shadow: 0 4px 10px rgba(0, 71, 187, 0.1);
+}
+
+@media (max-width: 720px) {
+  .panel-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  
+  .radar-tabs {
+    margin-left: 0;
+    justify-content: center;
+  }
+  
+  .panel-count {
+    text-align: left;
+  }
+}
+
+
