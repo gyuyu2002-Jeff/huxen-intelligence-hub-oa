@@ -438,7 +438,6 @@ window.openTenderDetail = function(id, type = 'active') {
     
     document.getElementById('detail-ai-competitor').textContent = tender.aiCompetitor || "暫無對手威脅評估。";
     document.getElementById('detail-ai-target-price').textContent = tender.aiTargetPrice || "暫無得標底價估計。";
-    document.getElementById('detail-ai-strategy').textContent = tender.aiStrategy || "暫無互盛業務強攻防禦策略。";
     
     document.getElementById('detail-desc-sec').style.display = 'block';
     document.getElementById('detail-desc').innerHTML = `<p>${tender.details}</p>`;
