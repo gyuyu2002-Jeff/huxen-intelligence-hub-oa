@@ -192,6 +192,11 @@ def fetch_historical_records_for_active_case(agency, title, location, processed_
         award_str = detail_data.get('決標資料:總決標金額') or ""
         award_display = extract_budget_text(award_str)
         
+        # Skip if budget or award amount is unavailable/undefined
+        if budget_display == "未定" or award_display == "未定":
+            print(f"Skipping historical record due to missing budget/award data: {h_title}")
+            continue
+            
         base_str = detail_data.get('決標資料:底價金額') or ""
         base_display = extract_budget_text(base_str)
         
@@ -221,11 +226,12 @@ def fetch_historical_records_for_active_case(agency, title, location, processed_
         base_val = parse_val(base_display)
         budget_val = parse_val(budget_display)
         
+        # Calculate discount ratio: prioritize comparing award amount against budget
         ratio = 0.0
-        if award_val > 0 and base_val > 0:
-            ratio = (award_val / base_val) * 100
-        elif award_val > 0 and budget_val > 0:
+        if award_val > 0 and budget_val > 0:
             ratio = (award_val / budget_val) * 100
+        elif award_val > 0 and base_val > 0:
+            ratio = (award_val / base_val) * 100
             
         ratio_display = f"{ratio:.1f}%" if ratio > 0 else "未知"
         
