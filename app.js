@@ -127,6 +127,22 @@ const competitors = [
   }
 ];
 
+// Treat imported procurement and AI-generated content as text, never markup.
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, char => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[char]);
+}
+
+function safeUrl(value) {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' || url.protocol === 'http:' ? url.href : '#';
+  } catch {
+    return '#';
+  }
+}
+
 // 3. State Management
 let savedTenders = JSON.parse(localStorage.getItem('savedTenders')) || [1, 3]; // Default saved ids
 let searchQuery = "";
@@ -232,23 +248,23 @@ function renderTenders() {
       if (activeTab === "active") {
         const isSaved = savedTenders.includes(t.id);
         return `
-          <article class="tender-row" data-id="${t.id}">
+          <article class="tender-row" data-id="${Number(t.id)}">
             <div class="tender-icon">OA</div>
             <div class="tender-main">
               <div class="tender-head">
-                <span class="tender-priority ${t.priority === '高' ? 'high' : 'mid'}">${t.priority}優先</span>
-                <h3 class="tender-click-title" style="cursor:pointer;" onclick="openTenderDetail(${t.id}, 'active')">${t.title}</h3>
+                <span class="tender-priority ${t.priority === '高' ? 'high' : 'mid'}">${escapeHtml(t.priority)}優先</span>
+                <h3 class="tender-click-title" style="cursor:pointer;" onclick="openTenderDetail(${Number(t.id)}, 'active')">${escapeHtml(t.title)}</h3>
               </div>
-              <p class="tender-agency">${t.agency}<span>·</span>${t.location}</p>
+              <p class="tender-agency">${escapeHtml(t.agency)}<span>·</span>${escapeHtml(t.location)}</p>
               <div class="tender-meta">
-                <span>預算 <b>${t.budget}</b></span>
-                <span>截止 <b>${t.deadline}</b></span>
-                <span class="${t.days <= 10 ? 'urgent' : ''}">剩 ${t.days} 天</span>
-                <a href="${t.sourceUrl}" target="_blank" rel="noreferrer" class="tender-link">開啟案件 ↗</a>
-                <button class="tender-btn-ai" onclick="openTenderDetail(${t.id}, 'active')">✨ AI 投標分析</button>
+                <span>預算 <b>${escapeHtml(t.budget)}</b></span>
+                <span>截止 <b>${escapeHtml(t.deadline)}</b></span>
+                <span class="${t.days <= 10 ? 'urgent' : ''}">剩 ${escapeHtml(t.days)} 天</span>
+                <a href="${escapeHtml(safeUrl(t.sourceUrl))}" target="_blank" rel="noreferrer" class="tender-link">開啟案件 ↗</a>
+                <button class="tender-btn-ai" onclick="openTenderDetail(${Number(t.id)}, 'active')">✨ AI 投標分析</button>
               </div>
             </div>
-            <button class="btn-save ${isSaved ? 'saved' : ''}" onclick="toggleSave(${t.id}, event)" aria-label="${isSaved ? '取消收藏' : '收藏'}">
+            <button class="btn-save ${isSaved ? 'saved' : ''}" onclick="toggleSave(${Number(t.id)}, event)" aria-label="${isSaved ? '取消收藏' : '收藏'}">
               ${isSaved ? '★' : '☆'}
             </button>
           </article>
@@ -256,21 +272,21 @@ function renderTenders() {
       } else {
         // Award tab layout
         return `
-          <article class="tender-row award-row" data-id="${t.id}">
+          <article class="tender-row award-row" data-id="${Number(t.id)}">
             <div class="tender-icon" style="background: var(--green-soft); color: var(--green); border-color: var(--green);">🏆</div>
             <div class="tender-main">
               <div class="tender-head">
                 <span class="tender-priority" style="background: var(--green-soft); color: var(--green);">已決標</span>
-                <h3 class="tender-click-title" style="cursor:pointer;" onclick="openTenderDetail(${t.id}, 'award')">${t.title}</h3>
+                <h3 class="tender-click-title" style="cursor:pointer;" onclick="openTenderDetail(${Number(t.id)}, 'award')">${escapeHtml(t.title)}</h3>
               </div>
-              <p class="tender-agency">${t.agency}<span>·</span>${t.location}</p>
+              <p class="tender-agency">${escapeHtml(t.agency)}<span>·</span>${escapeHtml(t.location)}</p>
               <div class="tender-meta">
-                <span>預算 <b>${t.budget}</b></span>
-                <span style="color: var(--green);">決標 <b>${t.awardAmount}</b></span>
-                <span>底價 <b>${t.basePrice}</b></span>
-                <span>決標日 <b>${t.date}</b></span>
-                <a href="${t.sourceUrl}" target="_blank" rel="noreferrer" class="tender-link" style="color: var(--green); border-color: var(--green-soft);">決標公告 ↗</a>
-                <button class="tender-btn-ai award" onclick="openTenderDetail(${t.id}, 'award')">🏆 決標行情分析</button>
+                <span>預算 <b>${escapeHtml(t.budget)}</b></span>
+                <span style="color: var(--green);">決標 <b>${escapeHtml(t.awardAmount)}</b></span>
+                <span>底價 <b>${escapeHtml(t.basePrice)}</b></span>
+                <span>決標日 <b>${escapeHtml(t.date)}</b></span>
+                <a href="${escapeHtml(safeUrl(t.sourceUrl))}" target="_blank" rel="noreferrer" class="tender-link" style="color: var(--green); border-color: var(--green-soft);">決標公告 ↗</a>
+                <button class="tender-btn-ai award" onclick="openTenderDetail(${Number(t.id)}, 'award')">🏆 決標行情分析</button>
               </div>
             </div>
           </article>
@@ -409,11 +425,11 @@ window.openTenderDetail = function(id, type = 'active') {
         tender.historyRecords.forEach(h => {
           html += `
             <tr>
-              <td style="padding: 6px; font-weight: 500; font-family: var(--font-sans);">${h.date}</td>
-              <td style="padding: 6px; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${h.title}">${h.title}</td>
-              <td style="padding: 6px; text-align: right; font-family: var(--font-sans);">${h.budget}</td>
-              <td style="padding: 6px; text-align: right; color: var(--green); font-weight: 700; font-family: var(--font-sans);">${h.awardAmount}</td>
-              <td style="padding: 6px; text-align: center; font-weight: 700; color: var(--blue); font-family: var(--font-sans);">${h.ratio}</td>
+              <td style="padding: 6px; font-weight: 500; font-family: var(--font-sans);">${escapeHtml(h.date)}</td>
+              <td style="padding: 6px; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(h.title)}">${escapeHtml(h.title)}</td>
+              <td style="padding: 6px; text-align: right; font-family: var(--font-sans);">${escapeHtml(h.budget)}</td>
+              <td style="padding: 6px; text-align: right; color: var(--green); font-weight: 700; font-family: var(--font-sans);">${escapeHtml(h.awardAmount)}</td>
+              <td style="padding: 6px; text-align: center; font-weight: 700; color: var(--blue); font-family: var(--font-sans);">${escapeHtml(h.ratio)}</td>
             </tr>
           `;
         });
@@ -440,7 +456,7 @@ window.openTenderDetail = function(id, type = 'active') {
     document.getElementById('detail-ai-target-price').textContent = tender.aiTargetPrice || "暫無得標底價估計。";
     
     document.getElementById('detail-desc-sec').style.display = 'block';
-    document.getElementById('detail-desc').innerHTML = `<p>${tender.details}</p>`;
+    document.getElementById('detail-desc').innerHTML = `<p>${escapeHtml(tender.details)}</p>`;
     document.getElementById('detail-link-btn').innerHTML = "前往政府電子採購網招標公告 ↗";
     document.getElementById('detail-link-btn').style.color = "";
     document.getElementById('detail-link-btn').style.borderColor = "";
@@ -473,7 +489,7 @@ window.openTenderDetail = function(id, type = 'active') {
     document.getElementById('detail-link-btn').style.borderColor = "var(--green-soft)";
   }
   
-  document.getElementById('detail-link-btn').setAttribute('href', tender.sourceUrl);
+  document.getElementById('detail-link-btn').setAttribute('href', safeUrl(tender.sourceUrl));
   
   openModal(detailModalEl);
 };
@@ -625,11 +641,11 @@ function renderMarketWatch() {
   `;
   
   const listHtml = marketWatchData.map(e => `
-    <article class="trend-card ${e.tone}">
-      <span class="trend-icon">${e.code}</span>
+    <article class="trend-card ${['red', 'green', 'blue'].includes(e.tone) ? e.tone : 'blue'}">
+      <span class="trend-icon">${escapeHtml(e.code)}</span>
       <div class="trend-info">
-        <strong>${e.title}</strong>
-        <p>${e.text}</p>
+        <strong>${escapeHtml(e.title)}</strong>
+        <p>${escapeHtml(e.text)}</p>
       </div>
     </article>
   `).join('');
